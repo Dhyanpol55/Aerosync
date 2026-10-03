@@ -1,0 +1,6 @@
+{
+  "name": "AEROSYNC — Dynamic Air Operations & Resource Optimisation",
+  "description": "AI-enabled dynamic air operations decision-support, multi-source data fusion, scarce resource allocation, and dynamic re-planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
