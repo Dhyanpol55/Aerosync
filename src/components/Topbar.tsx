@@ -13,7 +13,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Menu,
-  X
+  X,
+  Clock,
+  Radio,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { useOperations, ScreenId } from '../context/OperationsContext';
 
@@ -39,7 +43,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
     setShowMunitionsModal,
     setShowAtoModal,
     setShowTankerModal,
-    munitionsBottleneckWarning
+    munitionsBottleneckWarning,
+    isAudioMuted,
+    toggleAudioMute
   } = useOperations();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -64,8 +70,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
   return (
     <header className="h-16 border-b dark:border-slate-800 border-slate-200 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md sticky top-0 z-30 transition-colors">
       <div className="w-full h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-        {/* Left: Mobile Toggle & Simulation Status */}
-        <div className="flex items-center gap-3">
+        {/* Left: Mobile Toggle, Datalink & Operational Tabs (Equal distance between each tab) */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button 
             onClick={onToggleMobileMenu}
             className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -73,25 +79,25 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-base tracking-wider uppercase font-mono dark:text-white text-slate-900 md:hidden">
-              AEROSYNC
-            </span>
-            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-mono text-slate-600 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">Simulation Environment</span>
-              <span className="text-slate-400">|</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">● OPERATIONAL</span>
-            </div>
-          </div>
-        </div>
+          <span className="font-extrabold text-base tracking-wider uppercase font-mono dark:text-white text-slate-900 md:hidden">
+            AEROSYNC
+          </span>
 
-        {/* Center/Right quick tools */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Munitions PGM button */}
+          {/* Glowing Green Datalink Status Indicator Badge */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/30 dark:bg-emerald-950/60 text-xs font-mono shadow-sm h-[39px]">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-sm shadow-emerald-400" />
+            </span>
+            <span className="font-bold text-emerald-700 dark:text-emerald-300 tracking-wide uppercase" style={{ fontSize: '10px' }}>
+              IACCS / LINK-16 DATALINK: ACTIVE [120 Hz]
+            </span>
+          </div>
+
+          {/* Quick Munitions PGM Tab (Stockpiles) */}
           <button
             onClick={() => setShowMunitionsModal(true)}
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+            className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 h-[39px] text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
               munitionsBottleneckWarning
                 ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 animate-pulse'
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
@@ -102,35 +108,54 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
             <span>Stockpiles</span>
           </button>
 
-          {/* Quick ATO Export */}
+          {/* Quick ATO Export Tab */}
           <button
             onClick={() => setShowAtoModal(true)}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 h-[39px] text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 cursor-pointer"
             title="Air Tasking Order Export"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>ATO Export</span>
           </button>
 
-          {/* Tanker Bridge */}
+          {/* Tanker Bridge Tab */}
           <button
             onClick={() => setShowTankerModal(true)}
-            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 h-[39px] text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 cursor-pointer"
             title="Aerial Refueling Air Bridge"
           >
             <Fuel className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Tanker Bridge</span>
           </button>
+        </div>
 
-          {/* Zulu Time badge */}
-          <span className="hidden sm:inline-block px-2.5 py-1 rounded-md text-[11px] font-mono dark:bg-slate-900 bg-slate-100 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
-            {zuluTime}
-          </span>
+        {/* Right Tools (Keeping equal distance gap-2 sm:gap-2.5) */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Indian Standard Time (IST) Clock Badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 h-[39px] rounded-lg text-xs font-mono font-bold dark:bg-slate-950 bg-slate-900 text-white border border-slate-700 shadow-sm tracking-wide">
+            <Clock className="w-3 h-3 text-cyan-400 shrink-0" />
+            <span className="text-amber-400 text-[10px] font-bold">IST:</span>
+            <span className="text-white tabular-nums tracking-wider">{zuluTime}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+
+          {/* Tactical Audio Toggle */}
+          <button
+            onClick={toggleAudioMute}
+            className={`p-2 h-[39px] rounded-lg border transition-colors cursor-pointer shadow-xs flex items-center justify-center ${
+              isAudioMuted
+                ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600'
+                : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100'
+            }`}
+            title={isAudioMuted ? 'Tactical Voice Alerts Muted (Click to Enable)' : 'Tactical Audio & Voice Alerts Active (880Hz Chime + Speech)'}
+          >
+            {isAudioMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+          </button>
 
           {/* Theme Toggle Button (Light Mode / Dark Mode) */}
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 text-xs font-medium cursor-pointer transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 h-[39px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 text-xs font-medium cursor-pointer transition-colors shadow-xs"
             title="Toggle Light / Dark Mode (Persisted)"
           >
             {theme === 'dark' ? (

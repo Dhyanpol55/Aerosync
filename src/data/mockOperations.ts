@@ -8,7 +8,7 @@ import {
   EnvironmentalTimelinePoint
 } from '../types/operations';
 
-export const INITIAL_AIRCRAFT: Aircraft[] = [
+const RAW_INITIAL_AIRCRAFT: Aircraft[] = [
   {
     id: 'A-01',
     callsign: 'GARUDA-01',
@@ -495,6 +495,15 @@ export const INITIAL_AIRCRAFT: Aircraft[] = [
     airSpeedKnots: 0
   }
 ];
+
+export const INITIAL_AIRCRAFT: Aircraft[] = RAW_INITIAL_AIRCRAFT.map((ac, idx) => ({
+  ...ac,
+  latitude: Number((34.8 - (ac.y / 100) * 8.2).toFixed(4)),
+  longitude: Number((72.4 + (ac.x / 100) * 11.6).toFixed(4)),
+  distanceToWaypointNm: ac.altitudeFt > 0 ? Number((18 + (idx * 2.7) % 25).toFixed(1)) : 0,
+  totSeconds: ac.altitudeFt > 0 ? 320 + (idx * 55) % 450 : 0,
+  targetHeading: ac.heading
+}));
 
 export const INITIAL_CREW: CrewMember[] = [
   {

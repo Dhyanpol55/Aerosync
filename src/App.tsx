@@ -17,6 +17,7 @@ import { MunitionsStockpileModal } from './components/MunitionsStockpileModal';
 import { AtoExportModal } from './components/AtoExportModal';
 import { TankerAirBridgeModal } from './components/TankerAirBridgeModal';
 import { DemoTourModal } from './components/DemoTourModal';
+import { DatalinkTerminal } from './components/DatalinkTerminal';
 import { X, PlayCircle } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -123,6 +124,11 @@ const AppContent: React.FC = () => {
           {activeScreen === 'weather' && <WeatherAirspace />}
           {activeScreen === 'alerts' && <AlertsCenter />}
         </main>
+
+        {/* Live Datalink Log Stream Terminal */}
+        <div className="px-4 sm:px-6 lg:px-8 pb-4 shrink-0">
+          <DatalinkTerminal />
+        </div>
       </div>
 
       {/* Global Modals */}

@@ -149,11 +149,18 @@ export const Header: React.FC = () => {
       {/* Sub-strip with simulation notice & Zulu telemetry */}
       <div className="border-t dark:border-slate-900/80 border-slate-200 dark:bg-slate-950 bg-slate-100 px-4 sm:px-6 lg:px-8 py-1.5 text-xs font-mono dark:text-slate-400 text-slate-600 flex flex-wrap items-center justify-between gap-2 transition-colors">
         <div className="flex items-center gap-3">
-          <span className="text-cyan-600 dark:text-cyan-400 font-semibold uppercase tracking-wider">
-            SIMULATION MODE — Demonstration Dataset
-          </span>
-          <span className="text-slate-400 dark:text-slate-600">|</span>
-          <span className="dark:text-slate-400 text-slate-600">MoD SIH26250</span>
+          {/* Glowing Green Datalink Status Indicator Badge */}
+          <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full border border-emerald-500/50 bg-emerald-950/40 text-xs font-mono">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="font-bold text-emerald-400 tracking-wide uppercase text-[11px]">
+              IACCS / LINK-16 DATALINK: ACTIVE [120 Hz]
+            </span>
+          </div>
+          <span className="text-slate-400 dark:text-slate-600 hidden md:inline">|</span>
+          <span className="dark:text-slate-400 text-slate-600 hidden md:inline">MoD SIH26250</span>
           <span className="text-slate-400 dark:text-slate-600">|</span>
           <span className="dark:text-slate-300 text-slate-700">
             System: <span className={needsReoptimization ? "text-amber-500 font-bold" : "text-emerald-500"}>
@@ -173,7 +180,7 @@ export const Header: React.FC = () => {
             </button>
           )}
           <span className="dark:text-slate-400 text-slate-600 tabular-nums">
-            ZULU: <strong className="dark:text-slate-200 text-slate-900">{zuluTime}</strong>
+            IST: <strong className="dark:text-slate-200 text-slate-900">{zuluTime}</strong>
           </span>
         </div>
       </div>

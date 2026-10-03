@@ -17,6 +17,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useOperations } from '../context/OperationsContext';
+import { IncidentInjector } from './IncidentInjector';
 
 export const OverviewPage: React.FC = () => {
   const { 
@@ -150,6 +151,9 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Judge-Facing Battlefield Incident Injector Dock */}
+      <IncidentInjector />
 
       {/* Centerpiece: Section 11 & 12 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

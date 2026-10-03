@@ -13,8 +13,15 @@ import {
   BaseMunitionsStockpile,
   TankerAirBridge,
   AirTaskingOrder,
-  TacticalIntent
+  TacticalIntent,
+  ActiveIncident,
+  IncidentCategory
 } from '../types/operations';
+import { 
+  playTacticalVoiceAlert, 
+  setTacticalAudioMute, 
+  getTacticalAudioMute 
+} from '../utils/audioAlert';
 import { 
   INITIAL_AIRCRAFT, 
   INITIAL_CREW, 
@@ -167,6 +174,19 @@ interface OperationsContextType {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 
+  // Battlefield Incidents
+  activeIncident: ActiveIncident | null;
+  injectIncident: (type: IncidentCategory) => Promise<void>;
+  dismissIncident: () => void;
+
+  // Tactical Audio Alerts
+  isAudioMuted: boolean;
+  toggleAudioMute: () => void;
+  playVoiceAlert: (msg: string) => void;
+
+  // Global Telemetry Heartbeat
+  heartbeatTick: number;
+
   // Actions
   simulateOperationalChange: () => void;
   recalculatePlan: () => Promise<void>;
@@ -201,7 +221,7 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [systemStatus, setSystemStatus] = useState<string>('OPERATIONAL');
   const [simulationIteration, setSimulationIteration] = useState<number>(1);
   const [whatIfResult, setWhatIfResult] = useState<ScenarioResult | null>(null);
-  const [zuluTime, setZuluTime] = useState<string>('10:45:00 Z');
+  const [zuluTime, setZuluTime] = useState<string>('16:15:00 IST');
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
   const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogEntry | null>(INITIAL_AUDIT_LOGS[0]);
 
@@ -216,6 +236,25 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [showMunitionsModal, setShowMunitionsModal] = useState<boolean>(false);
   const [showAtoModal, setShowAtoModal] = useState<boolean>(false);
   const [showTankerModal, setShowTankerModal] = useState<boolean>(false);
+  const [activeIncident, setActiveIncident] = useState<ActiveIncident | null>(null);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(() => getTacticalAudioMute());
+  const [heartbeatTick, setHeartbeatTick] = useState<number>(0);
+
+  const toggleAudioMute = () => {
+    setIsAudioMuted(prev => {
+      const next = !prev;
+      setTacticalAudioMute(next);
+      return next;
+    });
+  };
+
+  const playVoiceAlert = (msg: string) => {
+    playTacticalVoiceAlert(msg);
+  };
+
+  const dismissIncident = () => {
+    setActiveIncident(null);
+  };
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('aerosync-theme');
@@ -362,19 +401,330 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  // Real-time clock in simulated Zulu military format
+  // Real-time clock in Indian Standard Time (IST, UTC+05:30)
   useEffect(() => {
     const updateClock = () => {
-      const d = new Date();
-      const h = String(d.getUTCHours()).padStart(2, '0');
-      const m = String(d.getUTCMinutes()).padStart(2, '0');
-      const s = String(d.getUTCSeconds()).padStart(2, '0');
-      setZuluTime(`${h}:${m}:${s} Z`);
+      try {
+        const now = new Date();
+        const istFormatted = now.toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        setZuluTime(`${istFormatted} IST`);
+      } catch {
+        // Fallback calculation: UTC + 5h 30m
+        const d = new Date();
+        const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
+        const istDate = new Date(utcMs + (5.5 * 3600000));
+        const h = String(istDate.getHours()).padStart(2, '0');
+        const m = String(istDate.getMinutes()).padStart(2, '0');
+        const s = String(istDate.getSeconds()).padStart(2, '0');
+        setZuluTime(`${h}:${m}:${s} IST`);
+      }
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Continuous global React timer hook (3-second heartbeat interval)
+  useEffect(() => {
+    const heartbeatInterval = setInterval(() => {
+      setHeartbeatTick(prev => prev + 1);
+
+      // 1. Dynamically update operational metrics across active airframes
+      setAircraft(prevAircraft => {
+        return prevAircraft.map((ac) => {
+          // Check if aircraft is actively flying (altitude > 0)
+          if (ac.altitudeFt > 0) {
+            // Decrement airborne fuel percentage by 0.1% per tick
+            const newFuel = Math.max(8, Number((ac.fuelState - 0.1).toFixed(1)));
+
+            // Decrement distance-to-waypoint and Time-on-Target (TOT)
+            const currentDist = ac.distanceToWaypointNm ?? 22.0;
+            const currentTot = ac.totSeconds ?? 350;
+
+            let newDist = Number(Math.max(0.4, currentDist - 0.35).toFixed(1));
+            let newTot = Math.max(15, currentTot - 3);
+            let heading = ac.heading;
+
+            // When reaching target waypoint threshold, transition to next flight corridor waypoint
+            if (newDist <= 0.8) {
+              newDist = Number((16 + (Math.random() * 12)).toFixed(1));
+              newTot = Math.round(newDist * 18);
+              // Shift heading smoothly along corridor vector (30-60 deg turn)
+              heading = Math.round((heading + 45 + Math.random() * 45) % 360);
+            }
+
+            // Move coordinates along assigned flight corridor
+            const speedFactor = 0.28;
+            const rad = (heading * Math.PI) / 180;
+            let nextX = ac.x + Math.sin(rad) * speedFactor;
+            let nextY = ac.y - Math.cos(rad) * speedFactor;
+
+            // Keep within tactical airspace boundaries with defensive boundary turnaround
+            if (nextX < 14) {
+              heading = (heading + 90) % 360;
+              nextX = 14;
+            } else if (nextX > 86) {
+              heading = (heading + 90) % 360;
+              nextX = 86;
+            }
+            if (nextY < 12) {
+              heading = (heading + 90) % 360;
+              nextY = 12;
+            } else if (nextY > 86) {
+              heading = (heading + 90) % 360;
+              nextY = 86;
+            }
+
+            // Interpolate latitude and longitude
+            const latitude = Number((34.8 - (nextY / 100) * 8.2).toFixed(4));
+            const longitude = Number((72.4 + (nextX / 100) * 11.6).toFixed(4));
+
+            return {
+              ...ac,
+              fuelState: newFuel,
+              distanceToWaypointNm: newDist,
+              totSeconds: newTot,
+              heading,
+              targetHeading: heading,
+              x: Number(nextX.toFixed(2)),
+              y: Number(nextY.toFixed(2)),
+              latitude,
+              longitude,
+            };
+          }
+          return ac;
+        });
+      });
+
+      // 2. Incrementally advance fatigue timers for aircrew on active sorties
+      setCrew(prevCrew => {
+        return prevCrew.map(c => {
+          if (c.availability === 'Assigned') {
+            return {
+              ...c,
+              flightHours30D: Number((c.flightHours30D + 0.05).toFixed(2))
+            };
+          } else if (c.availability === 'Rest Fatigue' && c.restHoursRemaining > 0) {
+            return {
+              ...c,
+              restHoursRemaining: Math.max(0, Number((c.restHoursRemaining - 0.1).toFixed(1)))
+            };
+          }
+          return c;
+        });
+      });
+    }, 3000);
+
+    return () => clearInterval(heartbeatInterval);
+  }, []);
+
+  // Battlefield Incident Injector Trigger
+  const injectIncident = async (type: IncidentCategory) => {
+    setIsOptimizing(true);
+    setSystemStatus('BATTLEFIELD INCIDENT DETECTED // RE-OPTIMISING ALL AIR WINGS...');
+    setNeedsReoptimization(false);
+
+    let incidentTitle = '';
+    let incidentDesc = '';
+    let voiceAlertText = '';
+    let tacticalImpactText = '';
+    let aiResponseText = '';
+    let reallocationsList: string[] = [];
+
+    const nowZulu = zuluTime;
+
+    if (type === 'sam_threat') {
+      incidentTitle = 'POP-UP S-400 SAM THREAT ENVELOPE';
+      incidentDesc = 'ELINT reconnaissance detected active 91N6E radar and mobile S-400 SAM battery deployed in Sector North (Grid N-14). Active engagement envelope: 180 NM radius.';
+      voiceAlertText = 'Threat alert: S-400 missile envelope detected in Sector North. Dynamic re-routing activated.';
+      tacticalImpactText = 'Sector North primary ingress corridor blocked. 4 strike sorties at risk of BVR engagement.';
+      aiResponseText = 'Dynamic standoff reroute computed: Diverted strike packages A-01, A-03, A-07 to low-altitude radar notch FL320. Dispatched SEAD package with 2x Anti-Radiation Missiles.';
+      reallocationsList = [
+        'A-01, A-03, A-07: Ingress path rerouted around 180 NM SAM envelope via FL320 notch',
+        'A-13: Retasked to SEAD Anti-Radiation Suppression with 2x RUDRAM Standoff Missiles',
+        'PEGASUS-01: Shifted tanker refuel orbit 35 NM South to stay clear of contested missile envelope'
+      ];
+
+      setSectors(prev => prev.map(s => s.id === 'SEC-NORTH' ? {
+        ...s,
+        threatLevel: 'CRITICAL',
+        activeThreat: 'Active S-400 Battery (Grid N-14) - Lethal Missile Envelope 180 NM'
+      } : s));
+
+      setAlerts(prev => [
+        {
+          id: `INC-SAM-${Date.now()}`,
+          timestamp: nowZulu,
+          severity: 'critical',
+          title: 'RED ALERT: Pop-up S-400 Threat Envelope',
+          message: 'Sector North SAM battery active. Dynamic re-routing and SEAD escort package activated.',
+          acknowledged: false,
+          actionRequired: 'Review AI Dynamic Standoff Route'
+        },
+        ...prev
+      ]);
+    } else if (type === 'weather_squall') {
+      incidentTitle = 'SEVERE CONVECTIVE WEATHER SQUALL';
+      incidentDesc = 'Doppler radar matrix confirms rapid squall cell with tops reaching FL480, zero-visibility hail, and microburst turbulence across Airspace Corridor Alpha.';
+      voiceAlertText = 'Weather warning: Severe squall detected closing Corridor Alpha. Strike packages rerouting.';
+      tacticalImpactText = 'Corridor Alpha closed to low and medium altitude flights. Direct flight path availability degraded by 85%.';
+      aiResponseText = 'Corridor Alpha closed. AI rerouted strike packages through Northern Corridor Bravo at FL360 with optimized fuel burn rate.';
+      reallocationsList = [
+        'Airspace Corridor Alpha closed (Ground stop to FL400)',
+        'GARUDA-01 & THUNDER-01: Diverted via Northern Corridor Bravo (+4 min TOT offset)',
+        'PEGASUS-01: Ascended from FL260 to FL340 above convective squall cloud tops'
+      ];
+
+      setSectors(prev => prev.map(s => s.id === 'SEC-CENTRAL' ? {
+        ...s,
+        weather: 'RESTRICTED',
+        airspace: 'RESTRICTED',
+        windSpeed: 48,
+        activeThreat: 'Convective Squall Front (Tops FL480) - Corridor Alpha Closed'
+      } : s));
+
+      setAlerts(prev => [
+        {
+          id: `INC-WX-${Date.now()}`,
+          timestamp: nowZulu,
+          severity: 'warning',
+          title: 'WEATHER CLOSURE: Corridor Alpha Ingress Halted',
+          message: 'Severe convective squall cell detected. All inbound aircraft rerouted to Corridor Bravo.',
+          acknowledged: false
+        },
+        ...prev
+      ]);
+    } else if (type === 'runway_closure') {
+      incidentTitle = 'RUNWAY CLOSURE — BASE ALPHA';
+      incidentDesc = 'Runway 27R at Base Alpha closed due to emergency cratering and unexploded ordnance on threshold. Recovery landings halted immediately.';
+      voiceAlertText = 'Emergency: Base Alpha runway closed. Initiating immediate recovery diversion to Base Bravo.';
+      tacticalImpactText = 'Base Alpha unable to recover 6 airborne aircraft. Emergency fuel diversion mandatory for returning flights.';
+      aiResponseText = 'Immediate diversion protocol executed: Rerouted 4 airborne flights to Base Bravo and 2 to FOB-Charlie. Dispatched mobile turnaround teams.';
+      reallocationsList = [
+        'Base Alpha Runway Status: DAMAGED / RECOVERY DIVERT ONLY',
+        'GARUDA-01, GARUDA-03: Diverted to Base Bravo (Holding stack Alpha at FL160)',
+        'PEGASUS-01: Dispatched to emergency fuel orbit to top off low-state fighters',
+        'Base-B & FOB-Charlie: Alert level upgraded to DEFCON 1 with emergency arresting gear'
+      ];
+
+      setBases(prev => prev.map(b => {
+        if (b.id === 'BASE-A') {
+          return { ...b, runwayStatus: 'Damaged', alertLevel: 'SCRAMBLE' };
+        }
+        if (b.id === 'BASE-B') {
+          return { ...b, alertLevel: 'DEFCON 1', turnaroundTeamsReady: b.turnaroundTeamsReady + 3 };
+        }
+        return b;
+      }));
+
+      setAlerts(prev => [
+        {
+          id: `INC-RWY-${Date.now()}`,
+          timestamp: nowZulu,
+          severity: 'critical',
+          title: 'DIVERT EMERGENCY: Base Alpha Runway Closed',
+          message: 'Threshold 27R blocked. Recovery flights diverted to Base Bravo with tanker support.',
+          acknowledged: false,
+          actionRequired: 'Monitor Divert Fuel Burn'
+        },
+        ...prev
+      ]);
+    } else if (type === 'high_value_scramble') {
+      incidentTitle = 'URGENT HIGH-VALUE SCRAMBLE ORDER';
+      incidentDesc = 'Airborne Early Warning (SENTINEL-01) confirmed fleeting radar signature of high-value hostile asset at Sector North border grid 12-F.';
+      voiceAlertText = 'Scramble order: High-value airborne target detected. Re-tasking alert fighters from Combat Air Patrol.';
+      tacticalImpactText = 'Time-critical target window: 7 minutes before radar horizon departure. Requires immediate supersonic intercept vector.';
+      aiResponseText = 'Instant AI Allocation: Retasked 2 airborne CAP fighters to Mach 1.4 intercept, scrambled 2 alert fighters from Base-A with Meteor loadouts.';
+      reallocationsList = [
+        'GARUDA-01: Retasked from routine CAP to Intercept Vector 045° at Mach 1.35',
+        'GARUDA-07: Scrambled from Base-A Ready Bay with 4x Meteor BVR missiles',
+        'SENTINEL-01: Focused AESA radar beam to 120 Hz high-update tracking on Grid 12-F',
+        'Air Tasking Order: Priority escalated to CRITICAL'
+      ];
+
+      setAlerts(prev => [
+        {
+          id: `INC-SCR-${Date.now()}`,
+          timestamp: nowZulu,
+          severity: 'critical',
+          title: 'SCRAMBLE: High-Value Target Intercept Active',
+          message: 'GARUDA-01 vectoring to intercept at Mach 1.35. Air Tasking Order priority escalated to CRITICAL.',
+          acknowledged: false
+        },
+        ...prev
+      ]);
+    }
+
+    // Play tactical chime and voice announcement
+    playTacticalVoiceAlert(voiceAlertText);
+
+    // AI solver convergence simulation
+    await new Promise(r => setTimeout(r, 650));
+
+    const incidentObj: ActiveIncident = {
+      id: `INC-${Date.now()}`,
+      type,
+      title: incidentTitle,
+      description: incidentDesc,
+      timestamp: nowZulu,
+      tacticalImpact: tacticalImpactText,
+      aiResponse: aiResponseText,
+      reallocationsSummary: reallocationsList
+    };
+    setActiveIncident(incidentObj);
+
+    // Push audit log
+    setAuditLogs(prev => [
+      {
+        id: `AUDIT-INC-${Date.now()}`,
+        timestamp: nowZulu,
+        eventType: 'simulation_change',
+        title: `Battlefield Disruption: ${incidentTitle}`,
+        triggerReason: incidentDesc,
+        stateSnapshot: {
+          availableAircraft: 15,
+          readyCrew: 101,
+          resourceCapacityPct: 74,
+          sortieCoveragePct: 95,
+          priority: type === 'high_value_scramble' ? 'CRITICAL' : 'HIGH',
+          confidencePct: 94,
+          activeConstraintsCount: 4,
+          weatherSummary: type === 'weather_squall' ? 'Squall Front Corridor Alpha' : 'Nominal',
+          airspaceSummary: type === 'weather_squall' ? 'Corridor Alpha CLOSED' : 'Active Tactical Routing'
+        }
+      },
+      ...prev
+    ]);
+
+    // Recalculate plan dynamically
+    setCurrentPlan(prev => ({
+      ...prev,
+      id: `PLAN-AI-RESP-${Date.now().toString().slice(-4)}`,
+      version: `v5.${simulationIteration + 1}-INCIDENT-OPTIMISED`,
+      generatedAt: nowZulu,
+      priority: type === 'high_value_scramble' ? 'CRITICAL' : 'HIGH',
+      confidencePct: 95,
+      sortieCoveragePct: 96,
+      recommendedAction: aiResponseText,
+      reallocations: reallocationsList.map((item, idx) => ({
+        id: `RE-INC-${idx}-${Date.now()}`,
+        resource: item.split(':')[0] || 'Airframe Resource',
+        from: 'Previous Transit Route',
+        to: 'Optimised Tactical Vector',
+        action: 'Dynamic Re-tasking',
+        justification: item
+      }))
+    }));
+
+    setIsOptimizing(false);
+    setSystemStatus('REAL-TIME OPTIMISATION COMPLETE // MULTI-SOURCE CONSTRAINTS RESOLVED');
+  };
 
   const unreadAlertsCount = alerts.filter(a => !a.acknowledged).length;
 
@@ -828,6 +1178,13 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         exitDemoTour,
         theme,
         toggleTheme,
+        activeIncident,
+        injectIncident,
+        dismissIncident,
+        isAudioMuted,
+        toggleAudioMute,
+        playVoiceAlert,
+        heartbeatTick,
         simulateOperationalChange,
         recalculatePlan,
         runWhatIfScenario,

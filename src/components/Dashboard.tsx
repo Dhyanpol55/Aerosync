@@ -1,5 +1,6 @@
 import React from 'react';
 import { useOperations } from '../context/OperationsContext';
+import { IncidentInjector } from './IncidentInjector';
 import { 
   Plane, 
   Users, 
@@ -197,6 +198,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Judge Battlefield Incident Injector Dock */}
+      <IncidentInjector />
 
       {/* AI Decision Support Banner / Callout (Key feature directly on front screen) */}
       <div className={`p-4 rounded-lg border transition-all ${

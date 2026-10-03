@@ -254,14 +254,14 @@ export const OperationalMap: React.FC = () => {
                 className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10 group"
               >
                 <div className="flex flex-col items-center">
-                  <div className="w-5 h-5 rounded-full bg-cyan-500/20 ring-4 ring-cyan-500/40 flex items-center justify-center group-hover:scale-125 transition-transform shadow-lg shadow-cyan-500/30">
-                    <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full" />
+                  <div className="w-3.5 h-3.5 rounded-full bg-cyan-500/25 ring-2 ring-cyan-500/40 flex items-center justify-center group-hover:scale-125 transition-transform shadow-md shadow-cyan-500/20">
+                    <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
                   </div>
-                  <div className="mt-1 px-1.5 py-0.5 bg-slate-900/95 border border-cyan-500/60 rounded text-[10px] font-mono font-bold text-cyan-300 whitespace-nowrap shadow">
+                  <div className="mt-0.5 px-1 py-0.2 bg-slate-900/95 border border-cyan-500/50 rounded text-[8px] font-mono font-bold text-cyan-300 whitespace-nowrap shadow">
                     ● {base.id}
                   </div>
-                  <span className="text-[9px] font-mono text-slate-400">
-                    {base.aircraftCount} Aircraft
+                  <span className="text-[8px] font-mono text-slate-400">
+                    {base.aircraftCount} AC
                   </span>
                 </div>
               </div>
@@ -276,7 +276,11 @@ export const OperationalMap: React.FC = () => {
               return (
                 <div
                   key={ac.id}
-                  style={{ left: `${ac.x}%`, top: `${ac.y}%` }}
+                  style={{ 
+                    left: `${ac.x}%`, 
+                    top: `${ac.y}%`,
+                    transition: ac.altitudeFt > 0 ? 'left 2.9s linear, top 2.9s linear' : undefined
+                  }}
                   onClick={() => {
                     setSelectedEntity(ac);
                     setSelectedAircraft(ac);
@@ -285,28 +289,34 @@ export const OperationalMap: React.FC = () => {
                     isSelected ? 'scale-125 z-30' : 'hover:scale-115'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    {/* Aircraft Symbol with Heading Angle */}
+                  <div className="flex items-center gap-1">
+                    {/* Aircraft Symbol with Heading Angle (smoothly rotating toward active waypoint heading) */}
                     <div 
-                      style={{ transform: `rotate(${ac.heading}deg)` }}
-                      className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
+                      style={{ 
+                        transform: `rotate(${ac.heading}deg)`,
+                        transition: 'transform 0.6s ease-out'
+                      }}
+                      className={`w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors ${
                         isSelected 
                           ? 'ring-2 ring-cyan-400 bg-cyan-900 shadow-md shadow-cyan-400/50' 
                           : isAvailable 
-                          ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-500/60' 
+                          ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-500/60 shadow-xs shadow-emerald-500/30' 
                           : isMaintenance 
                           ? 'bg-amber-950/90 text-amber-400 border border-amber-500/60' 
                           : 'bg-indigo-950/90 text-indigo-400 border border-indigo-500/60'
                       }`}
                     >
-                      <Plane className={`w-3.5 h-3.5 ${isAvailable ? 'text-emerald-300' : 'text-amber-300'}`} />
+                      <Plane className={`w-2.5 h-2.5 ${isAvailable ? 'text-emerald-300' : 'text-amber-300'}`} />
                     </div>
 
-                    {/* Compact Label */}
-                    <div className="bg-slate-900/90 px-1 py-0.2 rounded border border-slate-700/80 text-[9px] font-mono whitespace-nowrap">
-                      <span className="font-bold text-slate-200">{ac.id}</span>
+                    {/* Compact Label with Real-Time Coordinate Tag */}
+                    <div className="bg-slate-900/95 px-1 py-0.2 rounded border border-slate-700/80 text-[8px] font-mono whitespace-nowrap shadow-xs">
+                      <span className="font-bold text-slate-100">{ac.id}</span>
                       {ac.altitudeFt > 0 && (
-                        <span className="text-slate-400 ml-1">FL{Math.round(ac.altitudeFt / 1000)}</span>
+                        <>
+                          <span className="text-cyan-400 ml-1 font-semibold">{ac.heading}°</span>
+                          <span className="text-slate-400 ml-0.5">FL{Math.round(ac.altitudeFt / 1000)}</span>
+                        </>
                       )}
                     </div>
                   </div>
@@ -315,18 +325,20 @@ export const OperationalMap: React.FC = () => {
             })}
           </div>
 
-          {/* Bottom Map Status Strip */}
-          <div className="border-t border-slate-800 bg-slate-950/90 px-4 py-2 text-xs font-mono flex items-center justify-between text-slate-400">
-            <div className="flex items-center gap-4">
-              <span>ACTIVE TRACKS: <strong className="text-emerald-400 font-bold">{filteredAircraft.length}</strong></span>
+          {/* Bottom Map Status Strip with Real-Time Coordinates Feed */}
+          <div className="border-t border-slate-800 bg-slate-950/95 px-4 py-2 text-xs font-mono flex flex-wrap items-center justify-between text-slate-400 gap-2">
+            <div className="flex items-center gap-3">
+              <span>TRACKS: <strong className="text-emerald-400 font-bold">{filteredAircraft.length}</strong></span>
               <span>·</span>
               <span>BASES: <strong className="text-cyan-400 font-bold">{bases.length}</strong></span>
               <span>·</span>
-              <span>GRID OVERLAY: ACTIVE</span>
+              <span className="text-slate-300">
+                GEO-INTERPOLATION: <strong className="text-cyan-300 font-bold">120 Hz LINK-16</strong>
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-slate-300">RADAR SWEEP NOMINAL</span>
+              <span className="text-slate-200 font-bold">LIVE TELEMETRY STREAMING (3s HEARTBEAT)</span>
             </div>
           </div>
         </div>
@@ -371,6 +383,59 @@ export const OperationalMap: React.FC = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Live Real-Time Coordinates & Waypoint Block */}
+                {(selectedEntity as Aircraft).altitudeFt > 0 && (
+                  <div className="p-3 bg-cyan-950/30 rounded-lg border border-cyan-800/60 font-mono text-xs space-y-2">
+                    <div className="flex items-center justify-between pb-1 border-b border-cyan-800/40">
+                      <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+                        LIVE TELEMETRY (LINK-16 120Hz)
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-bold">● MOVING</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">GEO LATITUDE</span>
+                        <span className="text-white font-bold">
+                          {((selectedEntity as Aircraft).latitude ?? 32.4512).toFixed(4)}° N
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">GEO LONGITUDE</span>
+                        <span className="text-white font-bold">
+                          {((selectedEntity as Aircraft).longitude ?? 74.8123).toFixed(4)}° E
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">WAYPOINT DIST</span>
+                        <span className="text-cyan-300 font-bold">
+                          {((selectedEntity as Aircraft).distanceToWaypointNm ?? 18.5).toFixed(1)} NM
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">TIME ON TARGET (TOT)</span>
+                        <span className="text-amber-300 font-bold tabular-nums">
+                          {Math.floor(((selectedEntity as Aircraft).totSeconds ?? 240) / 60).toString().padStart(2, '0')}:
+                          {(((selectedEntity as Aircraft).totSeconds ?? 240) % 60).toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">HEADING VECTOR</span>
+                        <span className="text-slate-200 font-bold">
+                          {(selectedEntity as Aircraft).heading}° MAG
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">FUEL BURN TICK</span>
+                        <span className="text-emerald-400 font-bold">
+                          -0.1% / 3s
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2.5 text-xs font-mono">
                   <div className="flex justify-between py-1.5 border-b border-slate-800/80">

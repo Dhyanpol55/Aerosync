@@ -17,10 +17,30 @@ export interface Aircraft {
   sector: string;
   x: number; // 0-100 coordinates on tactical map
   y: number;
+  latitude?: number; // e.g. 32.4512° N
+  longitude?: number; // e.g. 76.8123° E
   heading: number; // degrees
+  targetHeading?: number;
+  distanceToWaypointNm?: number;
+  totSeconds?: number;
   altitudeFt: number;
   airSpeedKnots: number;
   missionAssigned?: string;
+}
+
+export type IncidentCategory = 'sam_threat' | 'weather_squall' | 'runway_closure' | 'high_value_scramble';
+
+export interface ActiveIncident {
+  id: string;
+  type: IncidentCategory;
+  title: string;
+  description: string;
+  timestamp: string;
+  affectedSector?: string;
+  affectedBase?: string;
+  tacticalImpact: string;
+  aiResponse: string;
+  reallocationsSummary: string[];
 }
 
 export type CrewRole = 'Fighter Pilot' | 'Weapons Systems Officer' | 'Airborne Controller' | 'Mission Commander';
