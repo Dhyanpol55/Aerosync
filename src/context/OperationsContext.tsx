@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { 
   Aircraft, 
   CrewMember, 
@@ -15,7 +15,12 @@ import {
   AirTaskingOrder,
   TacticalIntent,
   ActiveIncident,
-  IncidentCategory
+  IncidentCategory,
+  DataFusionSource,
+  UnifiedOperationalState,
+  ReadinessPredictionSet,
+  OptimisationOption,
+  SystemServiceStatus
 } from '../types/operations';
 import { 
   playTacticalVoiceAlert, 
@@ -40,7 +45,7 @@ import {
 const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'AUDIT-INIT-01',
-    timestamp: '10:44:00 Z',
+    timestamp: '16:15:00 IST',
     eventType: 'baseline_initial',
     title: 'Baseline Air Operations Plan (v4.1)',
     triggerReason: 'Initial operational deployment and multi-source telemetry synchronization across all wings.',
@@ -59,8 +64,235 @@ const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   }
 ];
 
+export const INITIAL_DATA_FUSION_SOURCES: DataFusionSource[] = [
+  {
+    id: 'src-aircraft',
+    name: '1. Aircraft Availability',
+    category: 'Aircraft',
+    connectionStatus: 'Connected',
+    lastUpdated: '3s ago',
+    lastUpdatedSeconds: 3,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 98,
+    sampleValue: '18 Available / 24 Total (75%)',
+    sourceType: 'telemetry'
+  },
+  {
+    id: 'src-crew',
+    name: '2. Crew Status',
+    category: 'Crew',
+    connectionStatus: 'Connected',
+    lastUpdated: '12s ago',
+    lastUpdatedSeconds: 12,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 95,
+    sampleValue: '104 Ready / 120 Total (87% Rested)',
+    sourceType: 'personnel'
+  },
+  {
+    id: 'src-resources',
+    name: '3. Resource / Load Status',
+    category: 'Resource',
+    connectionStatus: 'Connected',
+    lastUpdated: '8s ago',
+    lastUpdatedSeconds: 8,
+    dataFreshness: 'Fresh',
+    dataQuality: 'Nominal (B)',
+    confidenceScore: 92,
+    sampleValue: '76% Munitions & Aviation Fuel Buffer',
+    sourceType: 'logistics'
+  },
+  {
+    id: 'src-airspace',
+    name: '4. Airspace',
+    category: 'Airspace',
+    connectionStatus: 'Connected',
+    lastUpdated: '18s ago',
+    lastUpdatedSeconds: 18,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 94,
+    sampleValue: 'Corridors Alpha & Bravo Available (68% Open)',
+    sourceType: 'civil_radar'
+  },
+  {
+    id: 'src-weather',
+    name: '5. Weather',
+    category: 'Weather',
+    connectionStatus: 'Connected',
+    lastUpdated: '25s ago',
+    lastUpdatedSeconds: 25,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 96,
+    sampleValue: 'VMC Normal / Clear Ceilings Across Hubs',
+    sourceType: 'meteo_sat'
+  },
+  {
+    id: 'src-threats',
+    name: '6. Threat Indicators',
+    category: 'Threats',
+    connectionStatus: 'Connected',
+    lastUpdated: '5s ago',
+    lastUpdatedSeconds: 5,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 97,
+    sampleValue: 'S-400 Standoff Envelopes Logged · Low Threat',
+    sourceType: 'elint'
+  },
+  {
+    id: 'src-priorities',
+    name: '7. Mission Priorities',
+    category: 'Priorities',
+    connectionStatus: 'Connected',
+    lastUpdated: '30s ago',
+    lastUpdatedSeconds: 30,
+    dataFreshness: 'Fresh',
+    dataQuality: 'High (A+)',
+    confidenceScore: 99,
+    sampleValue: 'Air Defense QRA & Escort Priority (High)',
+    sourceType: 'c2_command'
+  }
+];
+
+export const INITIAL_SYSTEM_SERVICES: SystemServiceStatus[] = [
+  { id: 'srv-sources', name: 'Data Sources', status: 'Operational', latencyMs: 14, uptimePct: 99.9, lastHeartbeat: 'Ticking (120 Hz)' },
+  { id: 'srv-fusion', name: 'Data Fusion', status: 'Operational', latencyMs: 28, uptimePct: 99.8, lastHeartbeat: 'Normalized' },
+  { id: 'srv-ai', name: 'AI Analysis', status: 'Operational', latencyMs: 42, uptimePct: 99.7, lastHeartbeat: 'Model Ready' },
+  { id: 'srv-opt', name: 'Optimisation Engine', status: 'Operational', latencyMs: 56, uptimePct: 99.9, lastHeartbeat: 'CP-SAT Idle' },
+  { id: 'srv-db', name: 'Database', status: 'Operational', latencyMs: 8, uptimePct: 100.0, lastHeartbeat: 'Persisted' },
+  { id: 'srv-api', name: 'API Server', status: 'Operational', latencyMs: 12, uptimePct: 99.9, lastHeartbeat: 'REST 200 OK' },
+  { id: 'srv-ws', name: 'WebSocket Bus', status: 'Operational', latencyMs: 15, uptimePct: 99.9, lastHeartbeat: 'Connected' }
+];
+
+export const INITIAL_OPTIMISATION_OPTIONS: OptimisationOption[] = [
+  {
+    id: 'OPTION_A',
+    title: 'Option A: Resource-balanced',
+    focus: 'Balanced Readiness & Sustained Orbit Endurance',
+    feasibility: 'Optimal (100%)',
+    feasibilityPct: 100,
+    resourceUtilisation: 74,
+    readinessImpact: '+8% Fleet Readiness buffer',
+    estimatedDelay: '0 min',
+    constraintSatisfaction: 98,
+    confidence: 96,
+    tradeOffs: 'Equilibrium across all sectors; retains 4 alert-5 quick scramble airframes.',
+    whyThisOption: {
+      aircraftFactor: 'Utilizes 14 of 18 available airframes, keeping 4 in reserve.',
+      crewFactor: 'Distributes pilot duty cycles within 8-hour fatigue thresholds.',
+      resourceFactor: 'PGM expenditure rate within 76% base capacity buffer.',
+      weatherFactor: 'Reroutes around moderate cloud deck in Northern pass.',
+      airspaceFactor: 'Deconflicts with civil transit corridor 12-A.',
+      priorityWeight: 'Priority: High (Balanced offensive/defensive stance).',
+      constraintsSatisfied: [
+        'Turnaround time <= 45 minutes',
+        'Pilot rest cycle >= 12 hours between sorties',
+        'Fuel reserve >= 25% bingo state at recovery',
+        'SAM standoff margin >= 30 NM'
+      ],
+      majorFactors: ['Multi-role flexibility', 'Minimal delay risk', 'Steady resource consumption'],
+      warnings: ['Northern squall requires 15 NM corridor detour']
+    },
+    humanReviewState: 'PENDING'
+  },
+  {
+    id: 'OPTION_B',
+    title: 'Option B: Readiness-focused',
+    focus: 'Rapid Interception & Elevated CAP Coverage',
+    feasibility: 'Highly Feasible (94%)',
+    feasibilityPct: 94,
+    resourceUtilisation: 86,
+    readinessImpact: '+14% Combat CAP presence',
+    estimatedDelay: '4 min',
+    constraintSatisfaction: 94,
+    confidence: 92,
+    tradeOffs: 'Maximized airborne posture; increases pilot duty fatigue accrual by 12%.',
+    whyThisOption: {
+      aircraftFactor: 'Commits 16 airframes to active combat patrols for maximum deterrence.',
+      crewFactor: 'Requires voluntary surge duty authorization for 2 flight leads.',
+      resourceFactor: 'Higher tanker offload rate to sustain continuous supersonic loiter.',
+      weatherFactor: 'Accepts IMC approach windows with precision radar guidance.',
+      airspaceFactor: 'Requests priority military transit clearance from civil ATC.',
+      priorityWeight: 'Priority: Critical (Preemptive intercept posture).',
+      constraintsSatisfied: [
+        'Interception response time < 5 minutes',
+        'Dual-ship CAP overlapping coverage',
+        'Direct datalink sensor fusion locked'
+      ],
+      majorFactors: ['Instant reaction capability', 'Maximum aerial surveillance', 'Higher sortie generation'],
+      warnings: ['Elevates maintenance wear by 18%', 'Diminishes standby reserves to 2 airframes']
+    },
+    humanReviewState: 'PENDING'
+  },
+  {
+    id: 'OPTION_C',
+    title: 'Option C: Reserve-preserving',
+    focus: 'Asset Conservation & Fuel Stockpile Preservation',
+    feasibility: 'Highly Feasible (92%)',
+    feasibilityPct: 92,
+    resourceUtilisation: 62,
+    readinessImpact: '+2% Reserve replenishment',
+    estimatedDelay: '12 min',
+    constraintSatisfaction: 96,
+    confidence: 95,
+    tradeOffs: 'Conserves precision standoff munitions; accepts minor civil sector queue delay.',
+    whyThisOption: {
+      aircraftFactor: 'Limits active airborne platforms to 10, keeping 8 airframes fully rested.',
+      crewFactor: 'Maximizes pilot crew rest to 16 hours for extended campaign longevity.',
+      resourceFactor: 'Strictly throttles fuel consumption to preserve depot reserves.',
+      weatherFactor: 'Avoids any marginal meteorological corridors entirely.',
+      airspaceFactor: 'Shares civil airways during non-peak windows.',
+      priorityWeight: 'Priority: Routine / Sustained Patrol.',
+      constraintsSatisfied: [
+        'Zero fatigue violations',
+        'Munition stockpile reserves maintained above 80%',
+        'Airframe flight hour consumption below daily quota'
+      ],
+      majorFactors: ['Long-term endurance', 'Low operational risk', 'Preserves scarce PGMs'],
+      warnings: ['Response time for emergent threats increased by ~8 minutes']
+    },
+    humanReviewState: 'PENDING'
+  }
+];
+
+export const INITIAL_PREDICTIONS: ReadinessPredictionSet = {
+  aircraftReadiness: {
+    current: '18 / 24 (75%)',
+    predicted: '17 / 24 (71%)',
+    change: '-1 airframe (Maintenance turn)',
+    confidence: 94,
+    riskLevel: 'LOW'
+  },
+  crewReadiness: {
+    current: '87% ready',
+    predicted: '83% ready',
+    change: '-4% (Duty shift rollover in 4h)',
+    confidence: 92,
+    riskLevel: 'LOW'
+  },
+  resourcePressure: {
+    current: '32% (Nominal)',
+    predicted: '38% (Elevated)',
+    change: '+6% (PGM offload scheduled)',
+    confidence: 89,
+    riskLevel: 'MEDIUM'
+  },
+  delayRisk: {
+    current: '8% (Low)',
+    predicted: '14% (Moderate)',
+    change: '+6% (Civil traffic slot compression)',
+    confidence: 91,
+    riskLevel: 'LOW'
+  }
+};
+
 export type ScreenId = 
   | 'overview' 
+  | 'data-fusion'
   | 'resources' 
   | 'ai-analysis' 
   | 'scenario' 
@@ -186,6 +418,17 @@ interface OperationsContextType {
 
   // Global Telemetry Heartbeat
   heartbeatTick: number;
+
+  // AirSync Core Data Fusion & Optimisation Features
+  dataFusionSources: DataFusionSource[];
+  unifiedState: UnifiedOperationalState;
+  predictions: ReadinessPredictionSet;
+  optimisationOptions: OptimisationOption[];
+  systemServices: SystemServiceStatus[];
+  runAiAnalysis: () => Promise<void>;
+  runConstraintOptimisation: () => Promise<void>;
+  recordHumanReview: (optionId: 'OPTION_A' | 'OPTION_B' | 'OPTION_C', decision: 'APPROVED' | 'EDITED' | 'REJECTED', notes?: string) => void;
+  triggerOneClickDemoScenario: () => Promise<void>;
 
   // Actions
   simulateOperationalChange: () => void;
@@ -1120,6 +1363,343 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setCrew(prev => prev.map(c => c.id === crewId ? { ...c, assignment: newAssignment } : c));
   };
 
+  // AirSync Core Data Fusion & Optimisation State
+  const [dataFusionSources, setDataFusionSources] = useState<DataFusionSource[]>(INITIAL_DATA_FUSION_SOURCES);
+  const [systemServices, setSystemServices] = useState<SystemServiceStatus[]>(INITIAL_SYSTEM_SERVICES);
+  const [optimisationOptions, setOptimisationOptions] = useState<OptimisationOption[]>(INITIAL_OPTIMISATION_OPTIONS);
+  const [predictions, setPredictions] = useState<ReadinessPredictionSet>(INITIAL_PREDICTIONS);
+
+  const availableAircraftCount = aircraft.filter(a => a.status === 'available').length;
+  const readyCrewCount = crew.filter(c => c.status === 'Ready').length;
+  const readyCrewPct = Math.round((readyCrewCount / crew.length) * 100);
+
+  const unifiedState: UnifiedOperationalState = useMemo(() => {
+    const isDegraded = needsReoptimization || availableAircraftCount <= 15;
+    return {
+      aircraftAvailability: {
+        count: availableAircraftCount,
+        total: aircraft.length,
+        percentage: Math.round((availableAircraftCount / aircraft.length) * 100)
+      },
+      crewReadiness: {
+        count: readyCrewCount,
+        total: crew.length,
+        percentage: readyCrewPct
+      },
+      resources: {
+        capacityPct: currentPlan.resourceCapacityPct || 76,
+        bottleneckWarning: munitionsBottleneckWarning || undefined
+      },
+      weather: isDegraded ? 'MODERATE' : 'CLEAR',
+      airspace: isDegraded ? 'LIMITED' : 'AVAILABLE',
+      threatIndicators: isDegraded ? 'HIGH' : 'LOW',
+      priorities: currentPlan.priority || 'HIGH',
+      timestamps: {
+        fusedAt: zuluTime,
+        timeAlignmentDeltaMs: 14
+      },
+      confidence: isDegraded ? 88 : 96,
+      readinessPressure: isDegraded ? 68 : 28,
+      resourcePressure: isDegraded ? 58 : 32,
+      delayRisk: isDegraded ? 42 : 14,
+      environmentalImpact: isDegraded ? 52 : 18
+    };
+  }, [availableAircraftCount, aircraft.length, readyCrewCount, crew.length, readyCrewPct, currentPlan, munitionsBottleneckWarning, needsReoptimization, zuluTime]);
+
+  // Action: Run AI Analysis
+  const runAiAnalysis = async () => {
+    setIsOptimizing(true);
+    setSystemStatus('EXECUTING MULTI-SOURCE AI ANALYSIS...');
+    await new Promise(r => setTimeout(r, 600));
+
+    const isDegraded = needsReoptimization || availableAircraftCount <= 15;
+
+    setPredictions({
+      aircraftReadiness: {
+        current: `${availableAircraftCount} / ${aircraft.length} (${Math.round((availableAircraftCount / aircraft.length) * 100)}%)`,
+        predicted: `${Math.max(12, availableAircraftCount - 1)} / ${aircraft.length} (${Math.round(((availableAircraftCount - 1) / aircraft.length) * 100)}%)`,
+        change: isDegraded ? '-3 airframes under emergent maintenance' : '-1 airframe (Routine turnaround)',
+        confidence: isDegraded ? 89 : 95,
+        riskLevel: isDegraded ? 'HIGH' : 'LOW'
+      },
+      crewReadiness: {
+        current: `${readyCrewPct}% ready`,
+        predicted: `${Math.max(70, readyCrewPct - (isDegraded ? 6 : 3))}% ready`,
+        change: isDegraded ? '-6% (Surge fatigue threshold exceeded)' : '-3% (Shift rotation in 4h)',
+        confidence: isDegraded ? 88 : 93,
+        riskLevel: isDegraded ? 'HIGH' : 'LOW'
+      },
+      resourcePressure: {
+        current: `${isDegraded ? 58 : 32}% (${isDegraded ? 'Elevated' : 'Nominal'})`,
+        predicted: `${isDegraded ? 64 : 38}% (${isDegraded ? 'Severe' : 'Elevated'})`,
+        change: isDegraded ? '+12% (Surge sorties burning standby fuel)' : '+6% (Scheduled PGM loadout)',
+        confidence: isDegraded ? 86 : 91,
+        riskLevel: isDegraded ? 'HIGH' : 'MEDIUM'
+      },
+      delayRisk: {
+        current: `${isDegraded ? 42 : 8}% (${isDegraded ? 'Moderate' : 'Low'})`,
+        predicted: `${isDegraded ? 56 : 14}% (${isDegraded ? 'Elevated' : 'Moderate'})`,
+        change: isDegraded ? '+18% (Corridor Alpha bypass queue)' : '+6% (Civil traffic slot compression)',
+        confidence: isDegraded ? 87 : 94,
+        riskLevel: isDegraded ? 'HIGH' : 'LOW'
+      }
+    });
+
+    setAuditLogs(prev => [
+      {
+        id: `AUDIT-AI-${Date.now()}`,
+        timestamp: zuluTime,
+        eventType: 'ai_analysis',
+        title: 'AI Operational State Analysis Computed',
+        triggerReason: `Readiness pressure evaluated at ${isDegraded ? 68 : 28}%, delay risk ${isDegraded ? 42 : 14}%.`,
+        stateSnapshot: {
+          availableAircraft: availableAircraftCount,
+          readyCrew: readyCrewCount,
+          resourceCapacityPct: currentPlan.resourceCapacityPct || 76,
+          sortieCoveragePct: isDegraded ? 78 : 94,
+          priority: currentPlan.priority || 'HIGH',
+          confidencePct: isDegraded ? 88 : 96,
+          activeConstraintsCount: isDegraded ? 4 : 2,
+          weatherSummary: isDegraded ? 'Degraded / Moderate Squall' : 'Clear Ceilings',
+          airspaceSummary: isDegraded ? 'Corridor Alpha Regulated' : 'Available'
+        }
+      },
+      ...prev
+    ]);
+
+    setIsOptimizing(false);
+    setSystemStatus('AI ANALYSIS COMPLETE // PREDICTIONS UPDATED');
+  };
+
+  // Action: Run Constraint Optimisation
+  const runConstraintOptimisation = async () => {
+    setIsOptimizing(true);
+    setSystemStatus('SOLVING MIXED-INTEGER CONSTRAINTS (CP-SAT)...');
+    await new Promise(r => setTimeout(r, 700));
+
+    const isDegraded = needsReoptimization || availableAircraftCount <= 15;
+
+    setOptimisationOptions([
+      {
+        id: 'OPTION_A',
+        title: 'Option A: Resource-balanced',
+        focus: 'Balanced Readiness & Sustained Orbit Endurance',
+        feasibility: isDegraded ? 'Highly Feasible (94%)' : 'Optimal (100%)',
+        feasibilityPct: isDegraded ? 94 : 100,
+        resourceUtilisation: isDegraded ? 82 : 74,
+        readinessImpact: isDegraded ? '+6% Fleet Readiness buffer' : '+8% Fleet Readiness buffer',
+        estimatedDelay: isDegraded ? '6 min' : '0 min',
+        constraintSatisfaction: isDegraded ? 95 : 98,
+        confidence: isDegraded ? 91 : 96,
+        tradeOffs: 'Equilibrium across all sectors; retains 4 alert-5 quick scramble airframes.',
+        whyThisOption: {
+          aircraftFactor: `Allocates ${Math.min(14, availableAircraftCount)} platforms, reserving rest for emergent contingency.`,
+          crewFactor: 'Distributes pilot duty cycles within 8-hour fatigue thresholds.',
+          resourceFactor: 'PGM expenditure rate within 76% base capacity buffer.',
+          weatherFactor: isDegraded ? 'Reroutes flight paths around convective squall front.' : 'Optimal VMC corridors utilized.',
+          airspaceFactor: 'Deconflicts with civil transit corridor 12-A.',
+          priorityWeight: 'Priority: High (Balanced offensive/defensive stance).',
+          constraintsSatisfied: [
+            'Turnaround time <= 45 minutes',
+            'Pilot rest cycle >= 12 hours between sorties',
+            'Fuel reserve >= 25% bingo state at recovery',
+            'SAM standoff margin >= 30 NM'
+          ],
+          majorFactors: ['Multi-role flexibility', 'Minimal delay risk', 'Steady resource consumption'],
+          warnings: isDegraded ? ['Requires 15 NM corridor detour around squall front'] : []
+        },
+        humanReviewState: 'PENDING'
+      },
+      {
+        id: 'OPTION_B',
+        title: 'Option B: Readiness-focused',
+        focus: 'Rapid Interception & Elevated CAP Coverage',
+        feasibility: isDegraded ? 'Constrained (88%)' : 'Highly Feasible (94%)',
+        feasibilityPct: isDegraded ? 88 : 94,
+        resourceUtilisation: isDegraded ? 94 : 86,
+        readinessImpact: isDegraded ? '+10% Combat CAP presence' : '+14% Combat CAP presence',
+        estimatedDelay: isDegraded ? '12 min' : '4 min',
+        constraintSatisfaction: isDegraded ? 91 : 94,
+        confidence: isDegraded ? 87 : 92,
+        tradeOffs: 'Maximized airborne posture; increases pilot duty fatigue accrual by 12%.',
+        whyThisOption: {
+          aircraftFactor: `Surges active airframes to ${availableAircraftCount} for maximum air superiority.`,
+          crewFactor: 'Requires voluntary surge duty authorization for 2 flight leads.',
+          resourceFactor: 'Higher tanker offload rate to sustain continuous supersonic loiter.',
+          weatherFactor: 'Accepts radar-guided IMC ingress windows.',
+          airspaceFactor: 'Requests military priority transit clearance from ATC.',
+          priorityWeight: 'Priority: Critical (Preemptive intercept posture).',
+          constraintsSatisfied: [
+            'Interception response time < 5 minutes',
+            'Dual-ship CAP overlapping coverage',
+            'Direct datalink sensor fusion locked'
+          ],
+          majorFactors: ['Instant reaction capability', 'Maximum aerial surveillance', 'Higher sortie generation'],
+          warnings: ['Elevates maintenance wear by 18%', 'Diminishes standby reserves to 1 airframe']
+        },
+        humanReviewState: 'PENDING'
+      },
+      {
+        id: 'OPTION_C',
+        title: 'Option C: Reserve-preserving',
+        focus: 'Asset Conservation & Fuel Stockpile Preservation',
+        feasibility: 'Highly Feasible (92%)',
+        feasibilityPct: 92,
+        resourceUtilisation: isDegraded ? 68 : 62,
+        readinessImpact: '+2% Reserve replenishment',
+        estimatedDelay: isDegraded ? '18 min' : '12 min',
+        constraintSatisfaction: isDegraded ? 97 : 96,
+        confidence: isDegraded ? 92 : 95,
+        tradeOffs: 'Conserves precision standoff munitions; accepts minor civil sector queue delay.',
+        whyThisOption: {
+          aircraftFactor: `Limits airborne platforms to ${Math.max(8, availableAircraftCount - 5)}, maximizing reserves.`,
+          crewFactor: 'Maximizes pilot crew rest to 16 hours for extended campaign longevity.',
+          resourceFactor: 'Strictly throttles fuel consumption to preserve depot reserves.',
+          weatherFactor: 'Avoids any marginal meteorological corridors entirely.',
+          airspaceFactor: 'Shares civil airways during non-peak windows.',
+          priorityWeight: 'Priority: Routine / Sustained Patrol.',
+          constraintsSatisfied: [
+            'Zero fatigue violations',
+            'Munition stockpile reserves maintained above 80%',
+            'Airframe flight hour consumption below daily quota'
+          ],
+          majorFactors: ['Long-term endurance', 'Low operational risk', 'Preserves scarce PGMs'],
+          warnings: ['Response time for emergent threats increased by ~8 minutes']
+        },
+        humanReviewState: 'PENDING'
+      }
+    ]);
+
+    setAuditLogs(prev => [
+      {
+        id: `AUDIT-OPT-${Date.now()}`,
+        timestamp: zuluTime,
+        eventType: 'optimisation',
+        title: 'Constraint Solver Re-Optimisation Completed',
+        triggerReason: 'Generated 3 ranked options (Resource-Balanced, Readiness-Focused, Reserve-Preserving).',
+        stateSnapshot: {
+          availableAircraft: availableAircraftCount,
+          readyCrew: readyCrewCount,
+          resourceCapacityPct: currentPlan.resourceCapacityPct || 76,
+          sortieCoveragePct: isDegraded ? 78 : 94,
+          priority: currentPlan.priority || 'HIGH',
+          confidencePct: isDegraded ? 88 : 96,
+          activeConstraintsCount: isDegraded ? 4 : 2,
+          weatherSummary: isDegraded ? 'Degraded / Moderate Squall' : 'Clear Ceilings',
+          airspaceSummary: isDegraded ? 'Corridor Alpha Regulated' : 'Available'
+        }
+      },
+      ...prev
+    ]);
+
+    setIsOptimizing(false);
+    setSystemStatus('OPTIMISATION COMPLETE // 3 FEASIBLE OPTIONS AVAILABLE');
+  };
+
+  // Action: Human-in-the-Loop Review
+  const recordHumanReview = (
+    optionId: 'OPTION_A' | 'OPTION_B' | 'OPTION_C', 
+    decision: 'APPROVED' | 'EDITED' | 'REJECTED',
+    notes?: string
+  ) => {
+    setOptimisationOptions(prev => prev.map(opt => {
+      if (opt.id === optionId) {
+        return {
+          ...opt,
+          humanReviewState: decision,
+          reviewTimestamp: zuluTime,
+          reviewNotes: notes || `Plan ${decision} by Duty Operations Commander (${userRole}).`
+        };
+      }
+      return opt;
+    }));
+
+    // If approved, update active operational plan
+    if (decision === 'APPROVED') {
+      setNeedsReoptimization(false);
+      setSystemStatus(`PLAN APPROVED BY COMMANDER // OPTION ${optionId} ACTIVE`);
+    }
+
+    setAlerts(prev => [
+      {
+        id: `ALT-REV-${Date.now()}`,
+        timestamp: zuluTime,
+        severity: decision === 'APPROVED' ? 'system' : decision === 'REJECTED' ? 'warning' : 'info',
+        title: `Human Review Recorded: ${decision} (${optionId})`,
+        message: notes || `Commander review finalized for ${optionId}. Protocol: AI recommends -> Human reviews -> Decision recorded.`,
+        acknowledged: false
+      },
+      ...prev
+    ]);
+
+    setAuditLogs(prev => [
+      {
+        id: `AUDIT-REV-${Date.now()}`,
+        timestamp: zuluTime,
+        eventType: 'human_review',
+        title: `Human Review Decision: ${decision} (${optionId})`,
+        triggerReason: `Human-in-the-loop decision finalized: ${notes || 'Authorized for tasking execution'}.`,
+        stateSnapshot: {
+          availableAircraft: availableAircraftCount,
+          readyCrew: readyCrewCount,
+          resourceCapacityPct: currentPlan.resourceCapacityPct || 76,
+          sortieCoveragePct: 94,
+          priority: currentPlan.priority || 'HIGH',
+          confidencePct: 96,
+          activeConstraintsCount: 2,
+          weatherSummary: 'Nominal',
+          airspaceSummary: 'Available'
+        }
+      },
+      ...prev
+    ]);
+  };
+
+  // Action: Requirement 18 One-Click Demo Scenario
+  const triggerOneClickDemoScenario = async () => {
+    setIsOptimizing(true);
+    setSystemStatus('DEMO SCENARIO: INITIALISING BASELINE (18 AC, 87% CREW, 76% RES)...');
+
+    // 1. Initial State
+    setNeedsReoptimization(false);
+    await new Promise(r => setTimeout(r, 600));
+
+    // 2. Trigger Event: 18 -> 15 AC, 87% -> 81% Crew, 76% -> 71% Resources, Weather Degraded, Airspace Limited
+    setSystemStatus('DEMO SCENARIO: EVENT TRIGGERED (15 AC, 81% CREW, 71% RES, DEGRADED WX, LIMITED AIRSPACE)...');
+    simulateOperationalChange();
+
+    // 3. Data Fusion Pipeline
+    setDataFusionSources(prev => prev.map(s => {
+      if (s.id === 'src-aircraft') {
+        return { ...s, sampleValue: '15 Available / 24 Total (62.5%)', dataQuality: 'Nominal (B)', confidenceScore: 92, lastUpdated: 'Just now' };
+      }
+      if (s.id === 'src-crew') {
+        return { ...s, sampleValue: '97 Ready / 120 Total (81% Rested)', dataQuality: 'Nominal (B)', confidenceScore: 90, lastUpdated: 'Just now' };
+      }
+      if (s.id === 'src-resources') {
+        return { ...s, sampleValue: '71% Munition & Fuel Capacity', dataQuality: 'Marginal (C)', confidenceScore: 86, lastUpdated: 'Just now' };
+      }
+      if (s.id === 'src-weather') {
+        return { ...s, sampleValue: 'Degraded / Convective Squall Line', dataQuality: 'Nominal (B)', confidenceScore: 88, lastUpdated: 'Just now' };
+      }
+      if (s.id === 'src-airspace') {
+        return { ...s, sampleValue: 'Limited / Corridor Alpha Regulated', dataQuality: 'Nominal (B)', confidenceScore: 89, lastUpdated: 'Just now' };
+      }
+      return s;
+    }));
+
+    await new Promise(r => setTimeout(r, 600));
+
+    // 4. Run AI Analysis
+    await runAiAnalysis();
+
+    // 5. Run Constraint Optimisation & Update Options
+    await runConstraintOptimisation();
+
+    setIsOptimizing(false);
+    setSystemStatus('DEMO CASCADE COMPLETE // AWAITING HUMAN-IN-THE-LOOP REVIEW');
+  };
+
   return (
     <OperationsContext.Provider
       value={{
@@ -1191,7 +1771,16 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         applyWhatIfPlan,
         acknowledgeAlert,
         retaskAircraft,
-        reassignCrew
+        reassignCrew,
+        dataFusionSources,
+        unifiedState,
+        predictions,
+        optimisationOptions,
+        systemServices,
+        runAiAnalysis,
+        runConstraintOptimisation,
+        recordHumanReview,
+        triggerOneClickDemoScenario
       }}
     >
       {children}

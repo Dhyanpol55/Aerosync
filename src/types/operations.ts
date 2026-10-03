@@ -68,6 +68,8 @@ export interface Airbase {
   sector: string;
   x: number;
   y: number;
+  latitude?: number;
+  longitude?: number;
   runwayStatus: 'Operational' | 'Limited' | 'Damaged' | 'Weather Divert';
   aircraftCount: number;
   fuelCapacityPct: number;
@@ -219,7 +221,99 @@ export interface AlertNotice {
   actionRequired?: string;
 }
 
-export type AuditEventType = 'baseline_initial' | 'simulation_change' | 'reoptimization' | 'whatif_commit';
+export type AuditEventType = 
+  | 'baseline_initial' 
+  | 'simulation_change' 
+  | 'reoptimization' 
+  | 'whatif_commit'
+  | 'data_fusion'
+  | 'ai_analysis'
+  | 'prediction'
+  | 'optimisation'
+  | 're-planning'
+  | 'human_review';
+
+export interface DataFusionSource {
+  id: string;
+  name: string;
+  category: 'Aircraft' | 'Crew' | 'Resource' | 'Airspace' | 'Weather' | 'Threats' | 'Priorities';
+  connectionStatus: 'Connected' | 'Degraded' | 'Offline';
+  lastUpdated: string;
+  lastUpdatedSeconds: number;
+  dataFreshness: 'Fresh' | 'Stale' | 'Degraded';
+  dataQuality: 'High (A+)' | 'Nominal (B)' | 'Marginal (C)' | 'Critical (D)';
+  confidenceScore: number;
+  sampleValue: string;
+  sourceType: 'telemetry' | 'personnel' | 'logistics' | 'civil_radar' | 'meteo_sat' | 'elint' | 'c2_command';
+}
+
+export interface UnifiedOperationalState {
+  aircraftAvailability: { count: number; total: number; percentage: number };
+  crewReadiness: { count: number; total: number; percentage: number };
+  resources: { capacityPct: number; bottleneckWarning?: string };
+  weather: WeatherState;
+  airspace: AirspaceState;
+  threatIndicators: ThreatLevel;
+  priorities: 'ROUTINE' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  timestamps: { fusedAt: string; timeAlignmentDeltaMs: number };
+  confidence: number;
+  readinessPressure: number;
+  resourcePressure: number;
+  delayRisk: number;
+  environmentalImpact: number;
+}
+
+export interface MetricPrediction {
+  current: string | number;
+  predicted: string | number;
+  change: string;
+  confidence: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface ReadinessPredictionSet {
+  aircraftReadiness: MetricPrediction;
+  crewReadiness: MetricPrediction;
+  resourcePressure: MetricPrediction;
+  delayRisk: MetricPrediction;
+}
+
+export interface OptimisationOption {
+  id: 'OPTION_A' | 'OPTION_B' | 'OPTION_C';
+  title: string;
+  focus: string;
+  feasibility: string;
+  feasibilityPct: number;
+  resourceUtilisation: number;
+  readinessImpact: string;
+  estimatedDelay: string;
+  constraintSatisfaction: number;
+  confidence: number;
+  tradeOffs: string;
+  whyThisOption: {
+    aircraftFactor: string;
+    crewFactor: string;
+    resourceFactor: string;
+    weatherFactor: string;
+    airspaceFactor: string;
+    priorityWeight: string;
+    constraintsSatisfied: string[];
+    majorFactors: string[];
+    warnings: string[];
+  };
+  humanReviewState: 'PENDING' | 'APPROVED' | 'EDITED' | 'REJECTED';
+  reviewTimestamp?: string;
+  reviewNotes?: string;
+}
+
+export interface SystemServiceStatus {
+  id: string;
+  name: string;
+  status: 'Operational' | 'Warning' | 'Offline';
+  latencyMs: number;
+  uptimePct: number;
+  lastHeartbeat: string;
+}
 
 export interface AuditLogEntry {
   id: string;
