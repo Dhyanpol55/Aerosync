@@ -15,7 +15,8 @@ import {
   Eye,
   Crosshair,
   ArrowUpRight,
-  Info
+  Info,
+  Fuel
 } from 'lucide-react';
 
 export const OperationalMap: React.FC = () => {
@@ -27,7 +28,8 @@ export const OperationalMap: React.FC = () => {
     setSelectedAircraft,
     setSelectedBase,
     setSelectedSector,
-    retaskAircraft
+    retaskAircraft,
+    setShowTankerModal
   } = useOperations();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'North Sector' | 'Central Sector' | 'South Sector'>('all');
@@ -35,6 +37,7 @@ export const OperationalMap: React.FC = () => {
   const [showThreats, setShowThreats] = useState(true);
   const [showFlightPaths, setShowFlightPaths] = useState(true);
   const [showAirbases, setShowAirbases] = useState(true);
+  const [showCombatRadius, setShowCombatRadius] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedEntity, setSelectedEntity] = useState<Aircraft | Airbase | null>(selectedAircraft || aircraft[0]);
 
@@ -105,6 +108,22 @@ export const OperationalMap: React.FC = () => {
             >
               <Radio className="w-3.5 h-3.5" />
               <span>Tracks</span>
+            </button>
+            <button
+              onClick={() => setShowCombatRadius(!showCombatRadius)}
+              className={`px-2.5 py-1 rounded border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                showCombatRadius ? 'bg-teal-950/80 border-teal-600/70 text-teal-300' : 'bg-slate-900 border-slate-800 text-slate-500'
+              }`}
+              title="Toggle Unrefueled vs Refueled Combat Radii"
+            >
+              <Fuel className="w-3.5 h-3.5" />
+              <span>Range Rings</span>
+            </button>
+            <button
+              onClick={() => setShowTankerModal(true)}
+              className="px-2.5 py-1 rounded border bg-slate-900 hover:bg-slate-800 border-cyan-700/60 text-cyan-300 transition-colors cursor-pointer flex items-center gap-1.5 font-bold"
+            >
+              <span>Tanker Module</span>
             </button>
           </div>
         </div>

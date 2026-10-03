@@ -9,7 +9,11 @@ import {
   AlertNotice,
   WeatherState,
   AirspaceState,
-  AuditLogEntry
+  AuditLogEntry,
+  BaseMunitionsStockpile,
+  TankerAirBridge,
+  AirTaskingOrder,
+  TacticalIntent
 } from '../types/operations';
 import { 
   INITIAL_AIRCRAFT, 
@@ -20,6 +24,11 @@ import {
   INITIAL_PLAN, 
   INITIAL_ALERTS 
 } from '../data/mockOperations';
+import {
+  INITIAL_MUNITIONS_STOCKPILE,
+  INITIAL_TANKER_BRIDGE,
+  INITIAL_ATO
+} from '../data/munitionsData';
 
 const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   {
@@ -43,7 +52,22 @@ const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
   }
 ];
 
-export type ScreenId = 'dashboard' | 'map' | 'aircraft' | 'crew' | 'weather' | 'ai-engine' | 'whatif' | 'alerts';
+export type ScreenId = 
+  | 'overview' 
+  | 'resources' 
+  | 'ai-analysis' 
+  | 'scenario' 
+  | 'history' 
+  | 'map' 
+  | 'dashboard' 
+  | 'aircraft' 
+  | 'crew' 
+  | 'weather' 
+  | 'ai-engine' 
+  | 'whatif' 
+  | 'alerts';
+
+export type UserRole = 'Planner' | 'Analyst' | 'Viewer';
 
 export interface WhatIfParams {
   aircraftAvailabilityPct: number;
@@ -101,6 +125,48 @@ interface OperationsContextType {
   setSelectedAuditLog: (entry: AuditLogEntry | null) => void;
   restoreHistoricalPlan: (entry: AuditLogEntry) => void;
 
+  // Ordnance & Precision Munitions
+  munitionsStockpile: BaseMunitionsStockpile[];
+  transferMunition: (fromBaseId: string, toBaseId: string, munitionName: string, quantity: number) => void;
+  munitionsBottleneckWarning: string | null;
+  dismissBottleneckWarning: () => void;
+  showMunitionsModal: boolean;
+  setShowMunitionsModal: (show: boolean) => void;
+
+  // Tanker Air Bridge & ATO
+  tankerBridge: TankerAirBridge;
+  airTaskingOrder: AirTaskingOrder;
+  showAtoModal: boolean;
+  setShowAtoModal: (show: boolean) => void;
+  showTankerModal: boolean;
+  setShowTankerModal: (show: boolean) => void;
+
+  // Tactical Intent (Risk vs Yield Control)
+  tacticalIntent: TacticalIntent;
+  setTacticalIntent: (intent: TacticalIntent) => void;
+
+  // Role and Security Access
+  userRole: UserRole;
+  setUserRole: (role: UserRole) => void;
+
+  // Landing Page vs Dashboard
+  isLandingPage: boolean;
+  enterDemo: () => void;
+  exitToLanding: () => void;
+
+  // Guided Walkthrough Demo Tour
+  isDemoTourActive: boolean;
+  setIsDemoTourActive: (active: boolean) => void;
+  demoTourStep: number;
+  startDemoTour: () => void;
+  nextDemoTourStep: () => void;
+  prevDemoTourStep: () => void;
+  exitDemoTour: () => void;
+
+  // Theme (Dark / Light Mode)
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
+
   // Actions
   simulateOperationalChange: () => void;
   recalculatePlan: () => Promise<void>;
@@ -114,7 +180,11 @@ interface OperationsContextType {
 const OperationsContext = createContext<OperationsContextType | undefined>(undefined);
 
 export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeScreen, setActiveScreen] = useState<ScreenId>('dashboard');
+  const [activeScreen, setActiveScreen] = useState<ScreenId>('overview');
+  const [userRole, setUserRole] = useState<UserRole>('Planner');
+  const [isLandingPage, setIsLandingPage] = useState<boolean>(false);
+  const [isDemoTourActive, setIsDemoTourActive] = useState<boolean>(false);
+  const [demoTourStep, setDemoTourStep] = useState<number>(1);
   const [aircraft, setAircraft] = useState<Aircraft[]>(INITIAL_AIRCRAFT);
   const [crew, setCrew] = useState<CrewMember[]>(INITIAL_CREW);
   const [bases, setBases] = useState<Airbase[]>(INITIAL_BASES);
@@ -134,6 +204,163 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [zuluTime, setZuluTime] = useState<string>('10:45:00 Z');
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
   const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogEntry | null>(INITIAL_AUDIT_LOGS[0]);
+
+  // Ordnance & Precision Munitions (PGMs)
+  const [munitionsStockpile, setMunitionsStockpile] = useState<BaseMunitionsStockpile[]>(INITIAL_MUNITIONS_STOCKPILE);
+  const [tankerBridge, setTankerBridge] = useState<TankerAirBridge>(INITIAL_TANKER_BRIDGE);
+  const [airTaskingOrder, setAirTaskingOrder] = useState<AirTaskingOrder>(INITIAL_ATO);
+  const [tacticalIntent, setTacticalIntentState] = useState<TacticalIntent>('balanced');
+  const [munitionsBottleneckWarning, setMunitionsBottleneckWarning] = useState<string | null>(
+    "Logistics Bottleneck — Munitions Override Required: Base-A has 0 Anti-Radiation Missiles (RUDRAM) for planned SEAD flight PKG-BRAVO-02."
+  );
+  const [showMunitionsModal, setShowMunitionsModal] = useState<boolean>(false);
+  const [showAtoModal, setShowAtoModal] = useState<boolean>(false);
+  const [showTankerModal, setShowTankerModal] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aerosync-theme');
+      if (saved === 'light' || saved === 'dark') {
+        if (saved === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+        return saved;
+      }
+    }
+    return 'light'; // Light Mode is the default!
+  });
+
+  const enterDemo = () => setIsLandingPage(false);
+  const exitToLanding = () => setIsLandingPage(true);
+
+  const startDemoTour = () => {
+    setIsDemoTourActive(true);
+    setDemoTourStep(1);
+    setActiveScreen('overview');
+  };
+
+  const nextDemoTourStep = () => {
+    setDemoTourStep(prev => Math.min(prev + 1, 7));
+  };
+
+  const prevDemoTourStep = () => {
+    setDemoTourStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const exitDemoTour = () => {
+    setIsDemoTourActive(false);
+  };
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('aerosync-theme', next);
+      }
+      if (next === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const dismissBottleneckWarning = () => setMunitionsBottleneckWarning(null);
+
+  const transferMunition = (fromBaseId: string, toBaseId: string, munitionName: string, quantity: number) => {
+    setMunitionsStockpile(prev => {
+      return prev.map(base => {
+        if (base.baseId === fromBaseId) {
+          return {
+            ...base,
+            munitions: base.munitions.map(m => {
+              if (m.name === munitionName) {
+                const nextStock = Math.max(0, m.stockCount - quantity);
+                return {
+                  ...m,
+                  stockCount: nextStock,
+                  isShortage: nextStock <= m.minThreshold
+                };
+              }
+              return m;
+            })
+          };
+        }
+        if (base.baseId === toBaseId) {
+          return {
+            ...base,
+            munitions: base.munitions.map(m => {
+              if (m.name === munitionName) {
+                const nextStock = m.stockCount + quantity;
+                return {
+                  ...m,
+                  stockCount: nextStock,
+                  isShortage: nextStock <= m.minThreshold
+                };
+              }
+              return m;
+            })
+          };
+        }
+        return base;
+      });
+    });
+
+    if (toBaseId === 'BASE-A' && munitionName.includes('RUDRAM')) {
+      setMunitionsBottleneckWarning(null);
+      setAlerts(prev => [
+        {
+          id: `ALT-ORD-${Date.now()}`,
+          timestamp: zuluTime,
+          severity: 'system',
+          title: 'Munitions Logistics Bottleneck Resolved',
+          message: `${quantity}x ${munitionName} airlifted from ${fromBaseId} to Base-A. SEAD mission weapon load cleared.`,
+          acknowledged: false
+        },
+        ...prev
+      ]);
+    }
+  };
+
+  const setTacticalIntent = (intent: TacticalIntent) => {
+    setTacticalIntentState(intent);
+    setCurrentPlan(prev => {
+      let coverage = prev.sortieCoveragePct;
+      let confidence = prev.confidencePct;
+      let priorityName = prev.priority;
+
+      if (intent === 'conservative') {
+        coverage = 88;
+        confidence = 96;
+        priorityName = 'MEDIUM';
+      } else if (intent === 'balanced') {
+        coverage = 94;
+        confidence = 93;
+        priorityName = 'HIGH';
+      } else if (intent === 'high_risk_yield') {
+        coverage = 98;
+        confidence = 88;
+        priorityName = 'CRITICAL';
+      }
+
+      return {
+        ...prev,
+        priority: priorityName,
+        sortieCoveragePct: coverage,
+        confidencePct: confidence
+      };
+    });
+  };
 
   // Real-time clock in simulated Zulu military format
   useEffect(() => {
@@ -573,6 +800,34 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         selectedAuditLog,
         setSelectedAuditLog,
         restoreHistoricalPlan,
+        munitionsStockpile,
+        transferMunition,
+        munitionsBottleneckWarning,
+        dismissBottleneckWarning,
+        showMunitionsModal,
+        setShowMunitionsModal,
+        tankerBridge,
+        airTaskingOrder,
+        showAtoModal,
+        setShowAtoModal,
+        showTankerModal,
+        setShowTankerModal,
+        tacticalIntent,
+        setTacticalIntent,
+        userRole,
+        setUserRole,
+        isLandingPage,
+        enterDemo,
+        exitToLanding,
+        isDemoTourActive,
+        setIsDemoTourActive,
+        demoTourStep,
+        startDemoTour,
+        nextDemoTourStep,
+        prevDemoTourStep,
+        exitDemoTour,
+        theme,
+        toggleTheme,
         simulateOperationalChange,
         recalculatePlan,
         runWhatIfScenario,

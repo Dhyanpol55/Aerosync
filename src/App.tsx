@@ -1,100 +1,135 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { OperationsProvider, useOperations } from './context/OperationsContext';
-import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
+import { Sidebar } from './components/Sidebar';
+import { Topbar } from './components/Topbar';
+import { LandingPage } from './components/LandingPage';
+import { OverviewPage } from './components/OverviewPage';
+import { ResourcesPage } from './components/ResourcesPage';
+import { AiDecisionEngine } from './components/AiDecisionEngine';
+import { ScenarioPage } from './components/ScenarioPage';
+import { DecisionHistoryPage } from './components/DecisionHistoryPage';
 import { OperationalMap } from './components/OperationalMap';
 import { AircraftManagement } from './components/AircraftManagement';
 import { CrewManagement } from './components/CrewManagement';
 import { WeatherAirspace } from './components/WeatherAirspace';
-import { AiDecisionEngine } from './components/AiDecisionEngine';
-import { WhatIfSimulator } from './components/WhatIfSimulator';
 import { AlertsCenter } from './components/AlertsCenter';
-import { PlayCircle, ChevronRight, Zap, Cpu, Map, Shield } from 'lucide-react';
+import { MunitionsStockpileModal } from './components/MunitionsStockpileModal';
+import { AtoExportModal } from './components/AtoExportModal';
+import { TankerAirBridgeModal } from './components/TankerAirBridgeModal';
+import { DemoTourModal } from './components/DemoTourModal';
+import { X, PlayCircle } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { activeScreen, setActiveScreen, simulateOperationalChange, recalculatePlan, needsReoptimization } = useOperations();
+  const { 
+    activeScreen, 
+    setActiveScreen, 
+    isLandingPage, 
+    enterDemo, 
+    isDemoTourActive, 
+    startDemoTour, 
+    exitDemoTour 
+  } = useOperations();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // If user is on landing page, show full Landing Screen
+  if (isLandingPage) {
+    return <LandingPage onEnterDemo={enterDemo} />;
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Top Header Contract */}
-      <Header />
+    <div className="min-h-screen bg-[#F7F9FC] dark:bg-[#0B1120] text-[#0F172A] dark:text-[#F8FAFC] flex font-sans transition-colors duration-300">
+      {/* Desktop Sidebar (Section 7) */}
+      <Sidebar onOpenDemoTour={startDemoTour} />
 
-      {/* Main Viewport Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeScreen === 'dashboard' && <Dashboard />}
-        {activeScreen === 'map' && <OperationalMap />}
-        {activeScreen === 'aircraft' && <AircraftManagement />}
-        {activeScreen === 'crew' && <CrewManagement />}
-        {activeScreen === 'weather' && <WeatherAirspace />}
-        {activeScreen === 'ai-engine' && <AiDecisionEngine />}
-        {activeScreen === 'whatif' && <WhatIfSimulator />}
-        {activeScreen === 'alerts' && <AlertsCenter />}
-      </main>
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden bg-slate-950/60 backdrop-blur-sm">
+          <div className="w-72 bg-white dark:bg-[#111827] h-full p-4 flex flex-col justify-between shadow-2xl border-r border-slate-200 dark:border-slate-800">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <span className="font-extrabold text-base tracking-wider uppercase font-mono dark:text-white text-slate-900">
+                  AEROSYNC
+                </span>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-      {/* Interactive Demo Presentation Guide for Evaluators & Judges */}
-      <aside className="border-t border-slate-900 bg-slate-950/90 py-3 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-mono text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <PlayCircle className="w-3.5 h-3.5" />
-              Demo Walkthrough:
-            </span>
-            <span className="hidden sm:inline text-slate-500">
-              Step 1 (Overview) → Step 2 (Tactical Map) → Step 3 (Simulate Change) → Step 4 (AI Re-Optimise) → Step 5 (Why This Recommendation?)
-            </span>
-          </div>
+              <nav className="space-y-1.5 mt-4">
+                {[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'resources', label: 'Resources' },
+                  { id: 'ai-analysis', label: 'AI Analysis' },
+                  { id: 'scenario', label: 'Scenario' },
+                  { id: 'history', label: 'History' },
+                  { id: 'map', label: 'Tactical Map' }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveScreen(item.id as any);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+                      activeScreen === item.id
+                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setActiveScreen('dashboard')}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer ${activeScreen === 'dashboard' ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-700/60' : 'hover:text-slate-200'}`}
-            >
-              1. Overview
-            </button>
-            <span className="text-slate-600">→</span>
-            <button
-              onClick={() => setActiveScreen('map')}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer ${activeScreen === 'map' ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-700/60' : 'hover:text-slate-200'}`}
-            >
-              2. Map
-            </button>
-            <span className="text-slate-600">→</span>
-            <button
-              onClick={() => {
-                simulateOperationalChange();
-                setActiveScreen('ai-engine');
-              }}
-              className="px-2 py-1 rounded bg-amber-950/80 text-amber-300 border border-amber-600/50 hover:bg-amber-900 transition-colors cursor-pointer font-bold"
-            >
-              3. Simulate Change
-            </button>
-            <span className="text-slate-600">→</span>
-            <button
-              onClick={() => {
-                setActiveScreen('ai-engine');
-                recalculatePlan();
-              }}
-              className="px-2 py-1 rounded bg-cyan-900/80 text-cyan-200 border border-cyan-500/60 hover:bg-cyan-800 transition-colors cursor-pointer font-bold"
-            >
-              4. Re-Optimise
-            </button>
-            <span className="text-slate-600">→</span>
-            <button
-              onClick={() => setActiveScreen('ai-engine')}
-              className={`px-2 py-1 rounded transition-colors cursor-pointer ${activeScreen === 'ai-engine' ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-700/60' : 'hover:text-slate-200'}`}
-            >
-              5. Explainable AI
-            </button>
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <button
+                onClick={() => {
+                  startDemoTour();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full py-2 px-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <PlayCircle className="w-4 h-4" />
+                <span>Interactive Demo Tour</span>
+              </button>
+            </div>
           </div>
         </div>
-      </aside>
+      )}
 
-      {/* Clean quiet footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 font-mono">
-        <p>
-          AEROSYNC · Smart India Hackathon Prototype · Problem Statement ID: SIH26250 · Ministry of Defence (MoD)
-        </p>
-      </footer>
+      {/* Main Right Content Layout */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar Navigation (Section 7 & 9) */}
+        <Topbar 
+          onToggleMobileMenu={() => setMobileMenuOpen(true)}
+          onOpenDemoTour={startDemoTour}
+        />
+
+        {/* Dynamic Viewport */}
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto">
+          {(activeScreen === 'overview' || activeScreen === 'dashboard') && <OverviewPage />}
+          {activeScreen === 'resources' && <ResourcesPage />}
+          {(activeScreen === 'ai-analysis' || activeScreen === 'ai-engine') && <AiDecisionEngine />}
+          {(activeScreen === 'scenario' || activeScreen === 'whatif') && <ScenarioPage />}
+          {activeScreen === 'history' && <DecisionHistoryPage />}
+          {activeScreen === 'map' && <OperationalMap />}
+          {activeScreen === 'aircraft' && <AircraftManagement />}
+          {activeScreen === 'crew' && <CrewManagement />}
+          {activeScreen === 'weather' && <WeatherAirspace />}
+          {activeScreen === 'alerts' && <AlertsCenter />}
+        </main>
+      </div>
+
+      {/* Global Modals */}
+      <MunitionsStockpileModal />
+      <AtoExportModal />
+      <TankerAirBridgeModal />
+      <DemoTourModal isOpen={isDemoTourActive} onClose={exitDemoTour} />
     </div>
   );
 };

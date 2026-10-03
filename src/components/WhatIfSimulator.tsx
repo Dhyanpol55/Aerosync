@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useOperations, WhatIfParams } from '../context/OperationsContext';
 import { WeatherState, AirspaceState } from '../types/operations';
+import { RiskVsYieldSlider } from './RiskVsYieldSlider';
+import { HumanVsAiComparison } from './HumanVsAiComparison';
 import { 
   Sliders, 
   Play, 
@@ -113,6 +115,9 @@ export const WhatIfSimulator: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Tactical Intent Control: "Risk vs Yield" Optimization Slider */}
+      <RiskVsYieldSlider />
 
       {/* Simulator Inputs & Result Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -364,6 +369,9 @@ export const WhatIfSimulator: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Side-by-Side "Human vs AI" Comparison Panel */}
+      <HumanVsAiComparison />
     </div>
   );
 };

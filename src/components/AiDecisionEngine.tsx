@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useOperations } from '../context/OperationsContext';
 import { AuditLogSidebar } from './AuditLogSidebar';
-import { AuditLogEntry } from '../types/operations';
+import { HumanVsAiComparison } from './HumanVsAiComparison';
+import { RiskVsYieldSlider } from './RiskVsYieldSlider';
 import { 
   Cpu, 
-  Zap, 
-  CheckCircle, 
+  CheckCircle2, 
   ArrowRight, 
   AlertTriangle, 
   TrendingUp, 
@@ -19,7 +19,12 @@ import {
   ChevronDown,
   History,
   RotateCcw,
-  X
+  X,
+  Crosshair,
+  Plane,
+  Users,
+  Compass,
+  CloudRain
 } from 'lucide-react';
 
 export const AiDecisionEngine: React.FC = () => {
@@ -28,661 +33,516 @@ export const AiDecisionEngine: React.FC = () => {
     previousPlan, 
     aircraft, 
     crew, 
-    sectors, 
     needsReoptimization, 
     isOptimizing, 
     recalculatePlan, 
     simulateOperationalChange,
-    setActiveScreen,
     auditLogs,
     selectedAuditLog,
-    restoreHistoricalPlan
+    restoreHistoricalPlan,
+    setShowAtoModal,
+    setShowMunitionsModal
   } = useOperations();
 
-  const [activeTab, setActiveTab] = useState<'plan' | 'explanation' | 'reallocations'>('plan');
-  const [showAiTacticalBrief, setShowAiTacticalBrief] = useState(false);
-  const [isGeneratingAiBrief, setIsGeneratingAiBrief] = useState(false);
-  const [aiBriefContent, setAiBriefContent] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [comparedHistoricalEntry, setComparedHistoricalEntry] = useState<AuditLogEntry | null>(selectedAuditLog || null);
+  // Animation states for Section 17 & 22
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0); // 1 to 5
+  const [showResultCard, setShowResultCard] = useState(true);
+  const [showExplainablePanel, setShowExplainablePanel] = useState(false);
+  const [showComparisonCard, setShowComparisonCard] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const availableCount = aircraft.filter(a => a.status === 'available').length;
+  // Dynamic conditions
+  const availableAircraft = aircraft.filter(a => a.status === 'available').length;
+  const readyCrewPct = Math.round((crew.filter(c => c.status === 'Ready').length / crew.length) * 100);
 
-  const handleGenerateCommanderBrief = async () => {
-    setIsGeneratingAiBrief(true);
-    // Instant military formatted commander's strategic directive
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setAiBriefContent(
-      `STRATEGIC AIR TASKING ORDER (ATO) DIRECTIVE // RESTRICTED\n` +
-      `ISSUING AUTHORITY: AEROSYNC OPTIMISATION KERNEL\n` +
-      `MISSION POSTURE: ${currentPlan.priority} DEFENSIVE INGRESS\n\n` +
-      `1. SITUATION APPRAISAL: Multi-source sensor telemetry indicates convective weather in Sector B accompanied by increased radar threat density along southern approach axes. Total frontline airframe availability stands at ${currentPlan.availableAircraft} with ${currentPlan.readyCrew} mission-qualified crew.\n\n` +
-      `2. FORCE RE-DISTRIBUTION: In accordance with algorithmic constraint solving, 3 Multi-Role Superiority platforms are diverted to Northern Sector Green-04 corridor, establishing an orbit ceiling above FL280 to bypass cloud turbulence. PEGASUS-01 tanker orbit is established at Anchor Alpha with 65-ton offload capability.\n\n` +
-      `3. RESOURCE OPTIMISATION RATIONALE: Risk-weighted analysis confirms 94% target coverage while eliminating aircrew fatigue violations. Base-A quick-turn turnaround teams are positioned on 15-minute standby.\n\n` +
-      `RECOMMENDED COMMANDER ACTION: Authorize immediate scramble release.`
-    );
-    setIsGeneratingAiBrief(false);
-    setShowAiTacticalBrief(true);
+  // Section 17: 5-step analysis animation
+  const handleAnalyzeConditions = async () => {
+    setIsAnalyzing(true);
+    setShowResultCard(false);
+    setShowExplainablePanel(false);
+
+    setAnalysisStep(1); // Reading simulated data...
+    await new Promise(r => setTimeout(r, 500));
+    setAnalysisStep(2); // Validating conditions...
+    await new Promise(r => setTimeout(r, 500));
+    setAnalysisStep(3); // Checking constraints...
+    await new Promise(r => setTimeout(r, 600));
+    setAnalysisStep(4); // Optimising resources...
+    await new Promise(r => setTimeout(r, 500));
+    setAnalysisStep(5); // Generating recommendation...
+    await new Promise(r => setTimeout(r, 500));
+
+    setIsAnalyzing(false);
+    setShowResultCard(true);
+  };
+
+  const handleExecuteReoptimise = async () => {
+    setIsAnalyzing(true);
+    setAnalysisStep(1);
+    await new Promise(r => setTimeout(r, 400));
+    setAnalysisStep(3);
+    await new Promise(r => setTimeout(r, 400));
+    setAnalysisStep(4);
+    await new Promise(r => setTimeout(r, 400));
+    setAnalysisStep(5);
+    await new Promise(r => setTimeout(r, 400));
+    setIsAnalyzing(false);
+    await recalculatePlan();
+    setShowResultCard(true);
+    setShowComparisonCard(true);
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start relative">
-      {/* Main AI Engine Content Area (Flex 1) */}
+    <div className="flex flex-col lg:flex-row gap-6 items-start relative max-w-7xl mx-auto">
+      {/* Main AI Engine Content */}
       <div className="flex-1 w-full space-y-6 min-w-0">
         {/* Top Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b dark:border-slate-800 border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-3">
-              <span>AI Decision Engine & Dynamic Re-Planning</span>
-              <span className="text-xs font-mono px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-700/60 rounded">
-                HEURISTIC CONSTRAINT SOLVER
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              <span>AI Decision Engine</span>
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-cyan-300 border border-blue-200 dark:border-blue-800">
+                CONSTRAINT SOLVER
               </span>
             </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Multi-source data fusion · Predictive resource allocation · Transparent explainable AI reasoning
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              &ldquo;Analyse current conditions and generate an explainable recommendation.&rdquo;
             </p>
           </div>
 
-          {/* Demo Action Buttons & Sidebar Toggle */}
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
+              onClick={() => setShowAtoModal(true)}
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-blue-600/20"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>1-Click ATO Export</span>
+            </button>
+
+            <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                isSidebarOpen 
-                  ? 'bg-slate-800 text-cyan-400 border-slate-700' 
-                  : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+              className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                isSidebarOpen
+                  ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                  : 'bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
-              title="Toggle Audit Log Sidebar"
             >
               <History className="w-3.5 h-3.5" />
               <span>Audit Log ({auditLogs.length})</span>
             </button>
-
-            <button
-              onClick={simulateOperationalChange}
-              className="px-3.5 py-1.5 text-xs font-semibold text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/60 rounded-md transition-colors cursor-pointer flex items-center gap-2 shadow-sm"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>Simulate Operational Change</span>
-            </button>
-
-            <button
-              onClick={() => recalculatePlan()}
-              disabled={isOptimizing}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-2 ${
-                needsReoptimization
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin' : ''}`} />
-              <span>{isOptimizing ? 'Optimising Plan...' : 'Recalculate Plan'}</span>
-            </button>
           </div>
         </div>
 
-        {/* Dynamic Status Alert Banner */}
+        {/* Dynamic Condition Alert if Changed (Section 21) */}
         {needsReoptimization && (
-          <div className="p-4 bg-amber-950/60 border border-amber-500/80 rounded-lg text-amber-200 font-mono text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="p-4 rounded-2xl border border-amber-300 dark:border-amber-700/80 bg-amber-50 dark:bg-amber-950/40 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3 text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div>
-                <strong className="text-amber-300 font-bold uppercase block">
-                  PLAN RE-OPTIMISATION REQUIRED
+                <strong className="font-bold uppercase tracking-wider block">
+                  ⚠ CONDITIONS CHANGED
                 </strong>
-                <span>Operational changes detected: Aircraft pool decreased (18 → 15), Sector B weather degraded to RESTRICTED.</span>
+                <span>Re-optimisation is recommended. Aircraft availability decreased, weather degraded, and corridors restricted.</span>
               </div>
             </div>
+
             <button
-              onClick={() => recalculatePlan()}
-              disabled={isOptimizing}
-              className="px-4 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold font-sans rounded transition-colors cursor-pointer whitespace-nowrap self-start md:self-center"
+              onClick={handleExecuteReoptimise}
+              disabled={isAnalyzing}
+              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold cursor-pointer whitespace-nowrap shadow-sm shadow-amber-500/20 self-start sm:self-auto"
             >
-              {isOptimizing ? 'Solving Constraints...' : 'EXECUTE RE-OPTIMISATION'}
+              {isAnalyzing ? 'Optimising...' : 'RE-OPTIMISE'}
             </button>
           </div>
         )}
 
-        {/* Historical State Outcome Comparison Banner if Selected from Sidebar */}
-        {comparedHistoricalEntry && (
-          <div className="p-4 bg-slate-900 border border-cyan-500/60 rounded-lg font-mono text-xs shadow-lg space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-cyan-400" />
-                <span className="font-bold text-slate-200">
-                  Historical State Comparison: <strong className="text-cyan-300">{comparedHistoricalEntry.title}</strong>
-                </span>
-                <span className="text-slate-500">|</span>
-                <span className="text-slate-400">{comparedHistoricalEntry.timestamp}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {comparedHistoricalEntry.planSnapshot && (
-                  <button
-                    onClick={() => restoreHistoricalPlan(comparedHistoricalEntry)}
-                    className="px-2.5 py-1 text-[11px] bg-cyan-950 text-cyan-300 border border-cyan-700/60 hover:bg-cyan-900 rounded font-sans cursor-pointer flex items-center gap-1"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Restore Snapshot</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setComparedHistoricalEntry(null)}
-                  className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
-                  title="Dismiss comparison"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {/* Section 16: INPUT CONDITIONS Large Clean Card */}
+        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
+              INPUT CONDITIONS
+            </span>
+            <span className="text-[11px] font-mono text-slate-400">TELEMETRY SYNCED</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Aircraft Availability</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {availableAircraft} available
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold">Active Fleet</span>
             </div>
 
-            {/* Quick Metrics Comparison Matrix */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[11px]">
-              <div className="bg-slate-950/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Available Aircraft</span>
-                <div className="mt-1 flex items-center justify-center gap-1.5 font-bold">
-                  <span className="text-slate-400">{comparedHistoricalEntry.stateSnapshot.availableAircraft}</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-slate-100">{currentPlan.availableAircraft}</span>
-                  <span className={`text-[10px] ${
-                    currentPlan.availableAircraft - comparedHistoricalEntry.stateSnapshot.availableAircraft >= 0 
-                      ? 'text-emerald-400' 
-                      : 'text-rose-400'
-                  }`}>
-                    ({currentPlan.availableAircraft - comparedHistoricalEntry.stateSnapshot.availableAircraft >= 0 ? '+' : ''}
-                    {currentPlan.availableAircraft - comparedHistoricalEntry.stateSnapshot.availableAircraft})
-                  </span>
-                </div>
-              </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Crew Readiness</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {readyCrewPct}%
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold">Rested</span>
+            </div>
 
-              <div className="bg-slate-950/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Ready Aircrew</span>
-                <div className="mt-1 flex items-center justify-center gap-1.5 font-bold">
-                  <span className="text-slate-400">{comparedHistoricalEntry.stateSnapshot.readyCrew}</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-slate-100">{currentPlan.readyCrew}</span>
-                  <span className={`text-[10px] ${
-                    currentPlan.readyCrew - comparedHistoricalEntry.stateSnapshot.readyCrew >= 0 
-                      ? 'text-emerald-400' 
-                      : 'text-rose-400'
-                  }`}>
-                    ({currentPlan.readyCrew - comparedHistoricalEntry.stateSnapshot.readyCrew >= 0 ? '+' : ''}
-                    {currentPlan.readyCrew - comparedHistoricalEntry.stateSnapshot.readyCrew})
-                  </span>
-                </div>
-              </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Resource Capacity</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {currentPlan.resourceCapacityPct || 76}%
+              </p>
+              <span className="text-[10px] text-blue-600 font-semibold">Stable</span>
+            </div>
 
-              <div className="bg-slate-950/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Resource Pool</span>
-                <div className="mt-1 flex items-center justify-center gap-1.5 font-bold">
-                  <span className="text-slate-400">{comparedHistoricalEntry.stateSnapshot.resourceCapacityPct}%</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-slate-100">{currentPlan.resourceCapacityPct}%</span>
-                  <span className={`text-[10px] ${
-                    currentPlan.resourceCapacityPct - comparedHistoricalEntry.stateSnapshot.resourceCapacityPct >= 0 
-                      ? 'text-emerald-400' 
-                      : 'text-rose-400'
-                  }`}>
-                    ({currentPlan.resourceCapacityPct - comparedHistoricalEntry.stateSnapshot.resourceCapacityPct >= 0 ? '+' : ''}
-                    {currentPlan.resourceCapacityPct - comparedHistoricalEntry.stateSnapshot.resourceCapacityPct}%)
-                  </span>
-                </div>
-              </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Weather</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {needsReoptimization ? 'Degraded' : 'Moderate'}
+              </p>
+              <span className="text-[10px] text-slate-500">Ceilings</span>
+            </div>
 
-              <div className="bg-slate-950/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Sortie Coverage</span>
-                <div className="mt-1 flex items-center justify-center gap-1.5 font-bold">
-                  <span className="text-slate-400">{comparedHistoricalEntry.stateSnapshot.sortieCoveragePct}%</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-cyan-400">{currentPlan.sortieCoveragePct}%</span>
-                  <span className={`text-[10px] ${
-                    currentPlan.sortieCoveragePct - comparedHistoricalEntry.stateSnapshot.sortieCoveragePct >= 0 
-                      ? 'text-emerald-400' 
-                      : 'text-rose-400'
-                  }`}>
-                    ({currentPlan.sortieCoveragePct - comparedHistoricalEntry.stateSnapshot.sortieCoveragePct >= 0 ? '+' : ''}
-                    {currentPlan.sortieCoveragePct - comparedHistoricalEntry.stateSnapshot.sortieCoveragePct}%)
-                  </span>
-                </div>
-              </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Airspace</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {needsReoptimization ? 'Restricted' : 'Limited'}
+              </p>
+              <span className="text-[10px] text-slate-500">Corridors</span>
+            </div>
 
-              <div className="bg-slate-950/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">AI Confidence</span>
-                <div className="mt-1 flex items-center justify-center gap-1.5 font-bold">
-                  <span className="text-slate-400">{comparedHistoricalEntry.stateSnapshot.confidencePct}%</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-emerald-400">{currentPlan.confidencePct}%</span>
-                  <span className={`text-[10px] ${
-                    currentPlan.confidencePct - comparedHistoricalEntry.stateSnapshot.confidencePct >= 0 
-                      ? 'text-emerald-400' 
-                      : 'text-rose-400'
-                  }`}>
-                    ({currentPlan.confidencePct - comparedHistoricalEntry.stateSnapshot.confidencePct >= 0 ? '+' : ''}
-                    {currentPlan.confidencePct - comparedHistoricalEntry.stateSnapshot.confidencePct}%)
-                  </span>
-                </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 font-mono">
+              <span className="text-[10px] text-slate-400 block uppercase">Priority</span>
+              <p className="text-base font-bold text-blue-600 dark:text-cyan-400 mt-1">
+                {currentPlan.priority || 'High'}
+              </p>
+              <span className="text-[10px] text-slate-500">Posture</span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Evaluates combinatorial constraints across 3 bases, airframe maintenance cycles, and airspace slots.
+            </p>
+
+            <button
+              onClick={handleAnalyzeConditions}
+              disabled={isAnalyzing}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-600/20"
+            >
+              <Cpu className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
+              <span>{isAnalyzing ? 'Analyzing Conditions...' : 'ANALYSE CONDITIONS'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section 17: AI ANALYSIS ANIMATION (2-3s step progress) */}
+        {isAnalyzing && (
+          <div className="p-6 rounded-2xl border border-blue-200 dark:border-blue-900/70 bg-blue-50/50 dark:bg-blue-950/20 shadow-sm font-sans space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping"></span>
+                <span className="font-mono text-xs font-bold text-blue-700 dark:text-blue-300 uppercase">
+                  AI DECISION SOLVER IN PROGRESS
+                </span>
+              </div>
+              <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
+                Step {analysisStep} / 5
+              </span>
+            </div>
+
+            {/* Step list */}
+            <div className="space-y-2 text-xs font-mono">
+              <div className={`p-2 rounded-lg flex items-center gap-2.5 ${analysisStep >= 1 ? 'text-blue-900 dark:text-blue-200 font-semibold' : 'text-slate-400 opacity-60'}`}>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">1</span>
+                <span>Reading simulated data...</span>
+              </div>
+              <div className={`p-2 rounded-lg flex items-center gap-2.5 ${analysisStep >= 2 ? 'text-blue-900 dark:text-blue-200 font-semibold' : 'text-slate-400 opacity-60'}`}>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">2</span>
+                <span>Validating conditions...</span>
+              </div>
+              <div className={`p-2 rounded-lg flex items-center gap-2.5 ${analysisStep >= 3 ? 'text-blue-900 dark:text-blue-200 font-semibold' : 'text-slate-400 opacity-60'}`}>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">3</span>
+                <span>Checking constraints...</span>
+              </div>
+              <div className={`p-2 rounded-lg flex items-center gap-2.5 ${analysisStep >= 4 ? 'text-blue-900 dark:text-blue-200 font-semibold' : 'text-slate-400 opacity-60'}`}>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">4</span>
+                <span>Optimising resources...</span>
+              </div>
+              <div className={`p-2 rounded-lg flex items-center gap-2.5 ${analysisStep >= 5 ? 'text-blue-900 dark:text-blue-200 font-semibold' : 'text-slate-400 opacity-60'}`}>
+                <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">5</span>
+                <span>Generating recommendation...</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Side-by-side BEFORE vs AFTER Comparison */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-5">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-            <div className="flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-cyan-400" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200 font-mono">
-                DYNAMIC OPERATIONAL STATE SHIFT // BEFORE vs AFTER
-              </h2>
-            </div>
-            <span className="text-xs font-mono text-slate-400">Multi-Source Telemetry Delta</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-            {/* BEFORE / BASELINE */}
-            <div className="p-4 bg-slate-950/80 rounded border border-slate-800">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-3">
-                <span className="text-xs font-bold text-slate-400 uppercase">
-                  BEFORE (BASELINE STATE)
+        {/* Section 18: AI RESULT CARD */}
+        {showResultCard && !isAnalyzing && (
+          <div className="p-6 rounded-2xl border-2 border-emerald-400 dark:border-emerald-600/70 bg-white dark:bg-[#111827] shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  RECOMMENDATION READY
                 </span>
-                <span className="text-[10px] text-slate-500 font-semibold">PLAN v4.1</span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-semibold">
+                  ● Feasible
+                </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Aircraft Available:</span>
-                  <span className="text-slate-200 font-bold">18 Platforms</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Crew Ready:</span>
-                  <span className="text-slate-200 font-bold">104 Ready</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Weather:</span>
-                  <span className="text-emerald-400 font-bold">NORMAL (Clear)</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Airspace:</span>
-                  <span className="text-emerald-400 font-bold">NORMAL (Unrestricted)</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-400">Priority:</span>
-                  <span className="text-slate-200 font-bold">MEDIUM / ROUTINE</span>
-                </div>
+
+              {/* Section 20: Confidence Indicator */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-slate-500">Confidence:</span>
+                <span className="text-xs font-mono font-extrabold text-blue-600 dark:text-cyan-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded">
+                  {currentPlan.confidencePct || 91}%
+                </span>
               </div>
             </div>
 
-            {/* AFTER / CURRENT SIMULATED */}
-            <div className={`p-4 rounded border font-mono ${
-              needsReoptimization 
-                ? 'bg-amber-950/20 border-amber-600/70' 
-                : 'bg-cyan-950/20 border-cyan-800/70'
-            }`}>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-3">
-                <span className="text-xs font-bold text-cyan-300 uppercase">
-                  {needsReoptimization ? 'AFTER (CHANGED CONDITIONS)' : 'OPTIMISED STATE (CURRENT)'}
-                </span>
-                <span className="text-[10px] text-cyan-400 font-semibold">{currentPlan.version}</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Aircraft Available:</span>
-                  <span className={`font-bold ${currentPlan.availableAircraft < 18 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                    {currentPlan.availableAircraft} Platforms {currentPlan.availableAircraft < 18 ? '↓' : ''}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Crew Ready:</span>
-                  <span className="text-emerald-400 font-bold">
-                    {currentPlan.readyCrew} Ready ✓
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Weather:</span>
-                  <span className="text-amber-400 font-bold">
-                    DEGRADED (Squall Front) ↓
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/50">
-                  <span className="text-slate-400">Airspace:</span>
-                  <span className="text-amber-400 font-bold">
-                    LIMITED (Sector B Restricted) ↓
-                  </span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-400">Priority:</span>
-                  <span className="text-amber-300 font-bold">
-                    HIGH / DEFENSIVE POSTURE ↑
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Decision Support Framework: Current Situation & AI Analysis Checklist */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Situation & AI Analysis Pipeline (5 cols) */}
-          <div className="lg:col-span-5 space-y-5">
-            {/* Current Situation Box */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
-                  Current Situation
-                </span>
-                <span className="text-[10px] font-mono text-cyan-400">FUSED TELEMETRY</span>
-              </div>
-
-              <p className="text-xs text-slate-400 mb-4 font-mono">
-                Operational conditions have changed across tactical zones:
+            {/* Recommendation Text (Section 18 exact copy) */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <p className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white leading-relaxed">
+                &ldquo;Rebalance simulated resources toward the highest-priority planning requirement while preserving required availability reserves.&rdquo;
               </p>
-
-              <div className="space-y-2.5 font-mono text-xs">
-                <div className="flex items-center justify-between p-2 bg-slate-950 rounded border border-slate-800/80">
-                  <span className="text-slate-300">Aircraft availability</span>
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <span>↓</span> <span>Reduced (15 Ready)</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-slate-950 rounded border border-slate-800/80">
-                  <span className="text-slate-300">Crew readiness</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
-                    <span>✓</span> <span>Optimal (101 Ready)</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-slate-950 rounded border border-slate-800/80">
-                  <span className="text-slate-300">Resource availability</span>
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <span>↓</span> <span>Constrained (69%)</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-slate-950 rounded border border-slate-800/80">
-                  <span className="text-slate-300">Weather condition</span>
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <span>↓</span> <span>Restricted in Sector B</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-slate-950 rounded border border-slate-800/80">
-                  <span className="text-slate-300">Priority level</span>
-                  <span className="text-cyan-400 font-bold flex items-center gap-1">
-                    <span>↑</span> <span>Elevated to HIGH</span>
-                  </span>
-                </div>
-              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-mono">
+                {currentPlan.recommendedAction}
+              </p>
             </div>
 
-            {/* AI Analysis Multi-Constraint Engine Box */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
-                  AI Constraint Analysis
-                </span>
-                <span className="text-[10px] font-mono text-emerald-400">
-                  {isOptimizing ? 'ANALYSING...' : 'OPTIMISATION COMPLETE'}
-                </span>
-              </div>
+            {/* Section 20 Explanation note */}
+            <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+              * Confidence reflects agreement between the simulated input conditions and the decision engine's rule and constraint evaluation. It is not a real-world operational confidence measure.
+            </p>
 
-              <div className="space-y-2 font-mono text-xs">
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Aircraft availability evaluated</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Crew readiness & fatigue verified</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Resource & turnaround constraints solved</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Weather conditions & turbulence mapped</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Airspace corridor availability factored</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Mission priorities weighted</span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-400">Confidence Score:</span>
-                <span className="text-emerald-400 font-bold text-base tabular-nums">
-                  {currentPlan.confidencePct}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Recommended Resource Plan & Tabular Rationale (7 cols) */}
-          <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-lg p-5 flex flex-col justify-between">
-            <div className="space-y-5">
-              {/* RECOMMENDED RESOURCE PLAN Box */}
-              <div className="pb-4 border-b border-slate-800">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">
-                    RECOMMENDED RESOURCE PLAN
-                  </span>
-                  <span className="px-2 py-0.5 text-[11px] font-mono font-bold bg-amber-950 border border-amber-600/50 text-amber-300 rounded">
-                    PRIORITY: {currentPlan.priority}
-                  </span>
-                </div>
-
-                {/* Resource capacity overview */}
-                <div className="p-3 bg-slate-950/80 rounded border border-slate-800 grid grid-cols-3 gap-3 text-xs font-mono text-center mb-4">
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Available</span>
-                    <span className="text-base font-bold text-slate-100">{currentPlan.availableAircraft} Aircraft</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Ready Crew</span>
-                    <span className="text-base font-bold text-emerald-400">{currentPlan.readyCrew} Ready</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Resource Capacity</span>
-                    <span className="text-base font-bold text-indigo-400">{currentPlan.resourceCapacityPct}% Pool</span>
-                  </div>
-                </div>
-
-                {/* Constraints Detected */}
-                <div className="space-y-2 mb-4">
-                  <span className="text-xs font-mono text-slate-400 uppercase font-semibold block">
-                    Constraints Detected:
-                  </span>
-                  {currentPlan.constraintsDetected.map((cons, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs font-mono text-amber-300/90 bg-amber-950/20 p-2 rounded border border-amber-800/40">
-                      <span className="text-amber-400 font-bold">•</span>
-                      <span>{cons}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Recommended Action */}
-                <div className="p-3 bg-cyan-950/30 rounded border border-cyan-700/50 text-xs font-mono">
-                  <span className="text-cyan-400 font-bold block mb-1 uppercase text-[11px]">
-                    Recommended Action:
-                  </span>
-                  <p className="text-slate-200 font-medium">
-                    {currentPlan.recommendedAction}
-                  </p>
-                </div>
-              </div>
-
-              {/* Inner View Tabs: Reallocation Matrix vs Explainable AI Steps */}
-              <div>
-                <div className="flex items-center gap-2 border-b border-slate-800 pb-2 mb-4">
-                  <button
-                    onClick={() => setActiveTab('plan')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                      activeTab === 'plan' 
-                        ? 'bg-slate-800 text-cyan-400 font-semibold' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Dynamic Reallocations ({currentPlan.reallocations.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('explanation')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                      activeTab === 'explanation' 
-                        ? 'bg-slate-800 text-cyan-400 font-semibold' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Why This Recommendation? (XAI)
-                  </button>
-                </div>
-
-                {activeTab === 'plan' ? (
-                  /* Reallocation Items Table */
-                  <div className="space-y-3 font-mono text-xs">
-                    {currentPlan.reallocations.map((item) => (
-                      <div 
-                        key={item.id}
-                        className="p-3 bg-slate-950/70 rounded border border-slate-800 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-cyan-300">{item.resource}</span>
-                          <span className="text-[10px] px-2 py-0.5 bg-slate-900 text-slate-300 rounded border border-slate-700">
-                            {item.action}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-400 text-[11px]">
-                          <span>From: <strong className="text-slate-300">{item.from}</strong></span>
-                          <span>→</span>
-                          <span>To: <strong className="text-emerald-400">{item.to}</strong></span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 font-sans">
-                          {item.justification}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* Explainable AI Reasoning Chain */
-                  <div className="space-y-4">
-                    {/* Step by step chain of reasoning */}
-                    <div className="space-y-3">
-                      <span className="text-xs font-mono font-bold text-slate-300 uppercase block">
-                        CHAIN OF OPERATIONAL REASONING
-                      </span>
-                      <div className="space-y-2">
-                        {currentPlan.reasoningSteps.map((step) => (
-                          <div 
-                            key={step.stepNumber}
-                            className="flex items-start gap-3 p-2.5 bg-slate-950/70 rounded border border-slate-800/80 font-mono text-xs"
-                          >
-                            <span className="px-2 py-0.5 bg-cyan-950 text-cyan-400 border border-cyan-800/50 rounded font-bold">
-                              {step.stepNumber}
-                            </span>
-                            <div className="flex-1">
-                              <span className="font-semibold text-slate-200 block">{step.title}</span>
-                              <p className="text-[11px] text-slate-400 font-sans mt-0.5">{step.description}</p>
-                              <span className="text-[10px] text-cyan-400/90 block mt-1">
-                                Telemetry: {step.highlight}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Decision Factors Influence Table */}
-                    <div className="pt-2">
-                      <span className="text-xs font-mono font-bold text-slate-300 uppercase block mb-2">
-                        DECISION FACTOR INFLUENCE WEIGHTS
-                      </span>
-                      <table className="w-full text-left text-xs font-mono">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400 text-[11px]">
-                            <th className="pb-2">Factor</th>
-                            <th className="pb-2">Influence</th>
-                            <th className="pb-2">Impact Description</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                          {currentPlan.decisionFactors.map((df) => (
-                            <tr key={df.factor}>
-                              <td className="py-2 font-medium text-slate-200">{df.factor}</td>
-                              <td className="py-2">
-                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
-                                  df.influence === 'Very High' 
-                                    ? 'bg-rose-950 text-rose-300 border border-rose-700/60'
-                                    : df.influence === 'High'
-                                    ? 'bg-amber-950 text-amber-300 border border-amber-700/60'
-                                    : 'bg-slate-800 text-slate-300'
-                                }`}>
-                                  {df.influence}
-                                </span>
-                              </td>
-                              <td className="py-2 text-slate-400 text-[11px] font-sans">
-                                {df.impactDescription}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Commander Directive Generator Action */}
-            <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-mono text-slate-400">
-                AEROSYNC does not replace the human commander; it provides transparent decision support.
-              </span>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <button
-                onClick={handleGenerateCommanderBrief}
-                className="px-3.5 py-1.5 text-xs font-semibold text-cyan-300 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600/50 rounded transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                onClick={() => setShowExplainablePanel(!showExplainablePanel)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Generate ATO Directive Brief</span>
+                <span>{showExplainablePanel ? 'HIDE WHY' : 'VIEW WHY'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExplainablePanel ? 'rotate-180' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => setShowComparisonCard(!showComparisonCard)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                <span>VIEW BEFORE / AFTER</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Section 19: EXPLAINABLE AI PANEL */}
+        {showExplainablePanel && (
+          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
+                  Why this recommendation?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Transparent factor influence weighting and decision process steps.
+                </p>
+              </div>
+              <span className="text-[11px] font-mono text-emerald-600 font-bold uppercase">
+                EXPLAINABLE AI
+              </span>
+            </div>
+
+            {/* Horizontal Influence Bars (Section 19) */}
+            <div className="space-y-3 font-mono text-xs">
+              <span className="text-[11px] uppercase font-bold text-slate-400 block mb-2">
+                Factor Influence Weights
+              </span>
+
+              {/* Resource Availability: HIGH */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">RESOURCE AVAILABILITY</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold">HIGH INFLUENCE</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full" style={{ width: '85%' }} />
+                </div>
+              </div>
+
+              {/* Crew Readiness: HIGH */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">CREW READINESS</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">HIGH INFLUENCE</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-emerald-600 rounded-full" style={{ width: '80%' }} />
+                </div>
+              </div>
+
+              {/* Airspace: MEDIUM */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">AIRSPACE</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">MEDIUM INFLUENCE</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: '55%' }} />
+                </div>
+              </div>
+
+              {/* Weather: MEDIUM */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">WEATHER</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">MEDIUM INFLUENCE</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: '50%' }} />
+                </div>
+              </div>
+
+              {/* Priority: VERY HIGH */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">PRIORITY</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">VERY HIGH INFLUENCE</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-rose-500 rounded-full" style={{ width: '95%' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Decision Process Steps 01 to 05 (Section 19) */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[11px] font-mono uppercase font-bold text-slate-400 block mb-3">
+                Decision Process
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-mono text-xs text-center">
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                  <span className="text-blue-600 font-bold text-sm block">01</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Inputs validated</p>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                  <span className="text-blue-600 font-bold text-sm block">02</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Constraints identified</p>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                  <span className="text-blue-600 font-bold text-sm block">03</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Candidate plans generated</p>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                  <span className="text-blue-600 font-bold text-sm block">04</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Plans scored</p>
+                </div>
+                <div className="p-3 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40">
+                  <span className="text-emerald-600 font-bold text-sm block">05</span>
+                  <p className="font-semibold text-emerald-900 dark:text-emerald-200 mt-1">Feasible plan selected</p>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center text-[11px] font-mono text-slate-400">
+                &ldquo;Recommendation generated using a transparent constraint-based optimisation model.&rdquo;
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section 23: BEFORE VS AFTER COMPARISON CARD */}
+        {showComparisonCard && (
+          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-sm space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-blue-600 dark:text-cyan-400" />
+                Before vs After Plan Comparison
+              </h3>
+              <button
+                onClick={() => setShowComparisonCard(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-mono"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+              {/* CURRENT PLAN */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                <span className="text-[11px] font-bold uppercase text-slate-400 block mb-3">
+                  CURRENT PLAN (BASELINE)
+                </span>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500">Resource Capacity</span>
+                    <span className="font-bold text-slate-900 dark:text-white">76%</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500">Conditions</span>
+                    <span className="font-bold text-emerald-600">Stable</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Planning Status</span>
+                    <span className="font-bold text-blue-600">Normal</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* NEW PLAN */}
+              <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/20">
+                <span className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-300 block mb-3">
+                  NEW PLAN (OPTIMISED)
+                </span>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between py-1 border-b border-blue-200/60 dark:border-blue-800/60">
+                    <span className="text-slate-600 dark:text-slate-400">Resource Capacity</span>
+                    <span className="font-bold text-amber-600">69%</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-blue-200/60 dark:border-blue-800/60">
+                    <span className="text-slate-600 dark:text-slate-400">Conditions</span>
+                    <span className="font-bold text-amber-600">Changed</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-600 dark:text-slate-400">Planning Status</span>
+                    <span className="font-bold text-emerald-600">Re-optimised</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Factors causing change */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] font-mono font-bold uppercase text-slate-400 block mb-2">
+                Primary factors causing change:
+              </span>
+              <div className="flex flex-wrap gap-2 text-xs font-mono">
+                <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
+                  <CloudRain className="w-3.5 h-3.5" />
+                  Weather
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5" />
+                  Airspace
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" />
+                  Resource Availability
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tactical Intent Risk vs Yield Optimization Slider */}
+        <RiskVsYieldSlider />
+
+        {/* MoD Benchmark Evaluation: Human vs AI Decision Speed */}
+        <HumanVsAiComparison />
       </div>
 
-      {/* Audit Log Sidebar (Docked to right, togglable) */}
+      {/* Audit Log Sidebar (Toggleable) */}
       <AuditLogSidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        onSelectForComparison={(entry) => setComparedHistoricalEntry(entry)}
+        onSelectForComparison={(entry) => restoreHistoricalPlan(entry)}
       />
-
-      {/* Commander ATO Directive Modal */}
-      {showAiTacticalBrief && aiBriefContent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative font-mono text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-              <span className="text-sm font-bold text-cyan-400">
-                COMMANDER'S STRATEGIC AIR TASKING ORDER
-              </span>
-              <button
-                onClick={() => setShowAiTacticalBrief(false)}
-                className="text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 cursor-pointer font-sans"
-              >
-                Close
-              </button>
-            </div>
-            <pre className="p-4 bg-slate-950 rounded border border-slate-800 text-slate-300 whitespace-pre-wrap font-mono leading-relaxed text-[11px]">
-              {aiBriefContent}
-            </pre>
-            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end gap-3 font-sans">
-              <button
-                onClick={() => setShowAiTacticalBrief(false)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded cursor-pointer text-xs"
-              >
-                Authorize & Distribute to Squadrons
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

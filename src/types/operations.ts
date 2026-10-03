@@ -119,7 +119,74 @@ export interface OperationalPlan {
   reasoningSteps: ReasoningStep[];
 }
 
-export type AlertSeverity = 'critical' | 'warning' | 'planning' | 'system';
+export type MunitionCategory = 'Air-to-Air' | 'Air-to-Ground';
+
+export interface MunitionItem {
+  id: string;
+  name: string;
+  category: MunitionCategory;
+  stockCount: number;
+  maxCapacity: number;
+  minThreshold: number;
+  isShortage: boolean;
+  compatiblePlatforms: string[];
+  unitDescription: string;
+}
+
+export interface BaseMunitionsStockpile {
+  baseId: string;
+  baseName: string;
+  munitions: MunitionItem[];
+}
+
+export type TacticalIntent = 'conservative' | 'balanced' | 'high_risk_yield';
+
+export interface AtoMissionPackage {
+  packageId: string; // e.g. PKG-ALPHA-04
+  missionType: string; // Offensive Counter Air, SEAD, CAP, Deep Strike
+  priority: string;
+  callsigns: string[];
+  aircraftIds: string[];
+  aircraftType: string;
+  timeOnTarget: string; // TOT
+  escortWindow: string;
+  primaryBase: string;
+  alternateBase: string;
+  datalinkFrequency: string;
+  iffMode5Code: string;
+  tankerAnchor?: string;
+  ordnanceLoadout: string;
+  targetObjective: string;
+}
+
+export interface AirTaskingOrder {
+  atoNumber: string;
+  taskingPeriod: string;
+  commandAuthority: string;
+  securityClassification: string;
+  overallPriority: string;
+  packages: AtoMissionPackage[];
+  tankerAirBridgeNote: string;
+  specialInstructions: string[];
+}
+
+export interface TankerAirBridge {
+  tankerId: string;
+  callsign: string;
+  platform: string;
+  trackName: string;
+  altitudeBlock: string;
+  offloadFuelTons: number;
+  totalFuelRemainingTons: number;
+  offloadRateKgMin: number;
+  receiverCallsigns: string[];
+  loiterExtensionMinutes: number;
+  rendezvousTime: string;
+  anchorCoordinates: { x: number; y: number };
+  status: 'ACTIVE_ORBIT' | 'OFFLOAD_IN_PROGRESS' | 'STANDBY';
+}
+
+export type AlertSeverity = 'critical' | 'warning' | 'info' | 'system' | 'planning' | 'HIGH' | 'ATTENTION' | 'PLANNING' | 'SYSTEM';
 
 export interface AlertNotice {
   id: string;
