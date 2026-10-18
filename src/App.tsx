@@ -17,6 +17,7 @@ import { MunitionsStockpileModal } from './components/MunitionsStockpileModal';
 import { AtoExportModal } from './components/AtoExportModal';
 import { TankerAirBridgeModal } from './components/TankerAirBridgeModal';
 import { DemoTourModal } from './components/DemoTourModal';
+import { BackendHealthModal } from './components/BackendHealthModal';
 import { DatalinkTerminal } from './components/DatalinkTerminal';
 import { X, PlayCircle } from 'lucide-react';
 
@@ -28,7 +29,9 @@ const AppContent: React.FC = () => {
     enterDemo, 
     isDemoTourActive, 
     startDemoTour, 
-    exitDemoTour 
+    exitDemoTour,
+    showBackendHealthModal,
+    setShowBackendHealthModal 
   } = useOperations();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -136,6 +139,7 @@ const AppContent: React.FC = () => {
       <AtoExportModal />
       <TankerAirBridgeModal />
       <DemoTourModal isOpen={isDemoTourActive} onClose={exitDemoTour} />
+      <BackendHealthModal isOpen={showBackendHealthModal} onClose={() => setShowBackendHealthModal(false)} />
     </div>
   );
 };

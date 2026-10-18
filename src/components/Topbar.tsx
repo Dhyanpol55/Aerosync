@@ -43,6 +43,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
     setShowMunitionsModal,
     setShowAtoModal,
     setShowTankerModal,
+    setShowBackendHealthModal,
     munitionsBottleneckWarning,
     isAudioMuted,
     toggleAudioMute
@@ -83,8 +84,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
             AEROSYNC
           </span>
 
-          {/* Glowing Green Datalink Status Indicator Badge */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/30 dark:bg-emerald-950/60 text-xs font-mono shadow-sm h-[39px]">
+          {/* Glowing Green Datalink Status Indicator Badge (Click to Test Backend Health & API) */}
+          <button
+            onClick={() => setShowBackendHealthModal(true)}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-500/50 hover:border-emerald-400 bg-emerald-950/30 dark:bg-emerald-950/60 hover:bg-emerald-900/40 text-xs font-mono shadow-sm h-[39px] transition-all cursor-pointer"
+            title="IACCS Datalink & C2 Backend Engine — Click to Test API & Server Health"
+          >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-sm shadow-emerald-400" />
@@ -92,7 +97,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, onOpenDemoTo
             <span className="font-bold text-emerald-700 dark:text-emerald-300 tracking-wide uppercase" style={{ fontSize: '10px' }}>
               IACCS / LINK-16 DATALINK: ACTIVE [120 Hz]
             </span>
-          </div>
+          </button>
 
           {/* Quick Munitions PGM Tab (Stockpiles) */}
           <button

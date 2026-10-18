@@ -1,127 +1,162 @@
-# AirSync C2 — Dual Deployment Guide
-## Deploying Backend to Railway & Frontend to Vercel
+# AirSync C2 — Multi-Cloud Deployment Guide
+## Deploying Backend to Render / Railway & Frontend to Vercel
 
-This repository is configured for decoupled dual deployment:
-- **Backend (Express + C2 REST API & Data Fusion)** ➡️ Deployed on **Railway**
-- **Frontend (React 19 + Vite + Tailwind + Leaflet GIS Map)** ➡️ Deployed on **Vercel**
-
----
-
-## Architecture Summary
-
-```
-                       ┌─────────────────────────┐
-                       │      User Browser       │
-                       └────────────┬────────────┘
-                                    │
-           ┌────────────────────────┴────────────────────────┐
-           │                                                 │
-     Static Web App (HTML/JS/CSS)                      REST API & Telemetry
-           │                                                 │
-           ▼                                                 ▼
-┌──────────────────────┐                         ┌───────────────────────┐
-│        VERCEL        │                         │        RAILWAY        │
-│  (Frontend Hosting)  │                         │   (Backend Engine)    │
-│                      │                         │                       │
-│  - Vite build (dist) │    VITE_API_URL         │  - Express server.ts  │
-│  - vercel.json SPA   │ ──────────────────────> │  - 13 API endpoints   │
-│    rewrites          │  (CORS enabled)         │  - Data Fusion Bus    │
-│                      │                         │  - /health check      │
-└──────────────────────┘                         └───────────────────────┘
-```
+This repository supports flexible deployments:
+- **Option 1 (Recommended)**: Backend on **Render** (`render.com`), Frontend on **Vercel** (`vercel.com`).
+- **Option 2 (All-in-One)**: Full-Stack (Frontend + Backend on single URL) on **Render**.
+- **Option 3**: Backend on **Railway** (`railway.app`), Frontend on **Vercel**.
 
 ---
 
-## Part 1: Deploy Backend to Railway
+## 🔍 How to Check If Your Backend Is Running
 
-Railway runs Node.js natively with automatic SSL, automatic port binding, and continuous deployment from GitHub.
+You can verify your backend status using any of the following 4 methods:
 
-### Step 1: Push Code to GitHub
-Ensure your repository is pushed to GitHub.
+### 1. In Your Browser
+Open these URLs in your web browser:
+- **Healthcheck Endpoint**:  
+  `https://your-service.onrender.com/health` (or `http://localhost:3000/health`)  
+  **Expected Output**:
+  ```json
+  {
+    "status": "ok",
+    "service": "AirSync C2 Backend Engine",
+    "uptimeSeconds": 142,
+    "timestamp": "2026-10-18T09:47:18.000Z"
+  }
+  ```
+- **Telemetry Dashboard Endpoint**:  
+  `https://your-service.onrender.com/api/dashboard`  
+  **Expected Output**:
+  ```json
+  {
+    "operationalState": {
+      "aircraftAvailability": { "available": 18, "total": 24, "percentage": 75 },
+      "crewReadiness": { "ready": 104, "total": 120, "percentage": 87 },
+      "overallStatus": "OPERATIONAL"
+    },
+    "systemStatus": "OPERATIONAL"
+  }
+  ```
+- **API Catalog**:  
+  Visiting the root `https://your-service.onrender.com/` returns a JSON directory of all 13 active endpoints.
 
-### Step 2: Create a New Project on Railway
+---
+
+### 2. Using Terminal / cURL
+Run this in your command line:
+```bash
+# Check HTTP status and JSON response
+curl -i https://your-service.onrender.com/health
+```
+Look for:
+```
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+```
+
+---
+
+### 3. In the Render / Railway Dashboard
+- **Render Status Indicator**: Look for the green **"Live"** badge in your Render Web Service dashboard.
+- **Render Logs**: Click on the **"Logs"** tab. You should see:
+  ```
+  AirSync C2 server running at http://0.0.0.0:10000
+  GET /health 200 - 1.42ms
+  ```
+- **Healthcheck Status**: Render will periodically ping `/health` to ensure the instance is active.
+
+---
+
+### 4. Note on Render Free Tier "Cold Starts"
+Render's free tier spins down idle instances after 15 minutes of inactivity:
+- When a new request arrives, Render takes **30–50 seconds** to boot up.
+- Render shows "Spinning up..." during this period.
+- Once it responds to `/health`, the service is fully operational.
+
+---
+
+## 🚀 Part 1: Deploying to Render (`render.com`)
+
+### Method A: One-Click Blueprint (Recommended)
+This repo contains a pre-configured `render.yaml` file:
+1. Go to [dashboard.render.com](https://dashboard.render.com/) and sign in.
+2. Click **"New +"** ➜ **"Blueprint"**.
+3. Connect your GitHub repository.
+4. Render will read `render.yaml` and configure:
+   - **Service Name**: `airsync-c2-backend`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm run start`
+   - **Health Check Path**: `/health`
+5. Click **"Apply"** to deploy.
+
+---
+
+### Method B: Manual Web Service Setup on Render
+1. In Render Dashboard, click **"New +"** ➜ **"Web Service"**.
+2. Select your repository.
+3. Configure these exact settings:
+   - **Name**: `airsync-c2-backend` (or any name)
+   - **Region**: Oregon (or nearest)
+   - **Branch**: `main`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm run start`
+   - **Instance Type**: `Free`
+4. Expand **Advanced**:
+   - **Health Check Path**: `/health`
+   - **Auto-Deploy**: `Yes`
+5. Click **"Create Web Service"**.
+6. When deployment finishes, copy your Render URL:
+   ```
+   https://airsync-c2-backend.onrender.com
+   ```
+
+---
+
+## ⚡ Part 2: Deploy Frontend to Vercel (`vercel.com`)
+
+1. Go to [vercel.com](https://vercel.com/) and sign in.
+2. Click **"Add New..."** ➜ **"Project"** and import your repository.
+3. Vercel will auto-detect `vercel.json` and Vite:
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Expand **Environment Variables**:
+   - **Key**: `VITE_API_URL`
+   - **Value**: Your Render backend URL (e.g. `https://airsync-c2-backend.onrender.com`)
+5. Click **"Deploy"**.
+
+---
+
+## 🚂 Part 3: Deploy Backend to Railway (`railway.app`)
+
 1. Go to [railway.app](https://railway.app/) and sign in.
 2. Click **"+ New Project"** ➜ **"Deploy from GitHub repo"**.
-3. Select your repository.
-
-### Step 3: Configure Railway Settings
-Railway will automatically detect `railway.json` and `package.json`. Verify the following in the Railway Dashboard:
-- **Root Directory**: `/` (Leave as default)
-- **Build Command**: (Nixpacks detects Node.js automatically; `npm install` runs automatically)
-- **Start Command**: `npm run start` (or `tsx server.ts`)
-- **Healthcheck Path**: `/health`
-
-### Step 4: Generate Public Domain
-1. In your Railway service dashboard, click **"Settings"**.
-2. Scroll to **"Public Networking"** and click **"Generate Domain"**.
-3. You will receive a URL such as:
-   ```
-   https://airsync-backend-production.up.railway.app
-   ```
-4. **Test your backend**:
-   Open that URL in your browser:
-   - Root: `https://<your-railway-url>/` ➜ Returns JSON listing all 13 API endpoints
-   - Healthcheck: `https://<your-railway-url>/health` ➜ Returns `{"status":"ok", ...}`
-   - Dashboard: `https://<your-railway-url>/api/dashboard` ➜ Returns operational state
+3. Railway automatically detects `railway.json`:
+   - **Start Command**: `npm run start`
+   - **Healthcheck Path**: `/health`
+4. In Railway **Settings** ➜ **Public Networking**, click **"Generate Domain"**.
+5. Put that URL into Vercel's `VITE_API_URL`.
 
 ---
 
-## Part 2: Deploy Frontend to Vercel
+## 📋 API Endpoints Reference
 
-Vercel provides edge caching and instant global CDN delivery for Vite React SPAs.
-
-### Step 1: Import Project on Vercel
-1. Go to [vercel.com](https://vercel.com/) and sign in.
-2. Click **"Add New..."** ➜ **"Project"**.
-3. Import the same GitHub repository.
-
-### Step 2: Configure Build Settings
-Vercel will detect Vite automatically using `vercel.json`:
-- **Framework Preset**: `Vite`
-- **Build Command**: `npm run build`
-- **Output Directory**: `dist`
-- **Install Command**: `npm install`
-
-### Step 3: Add Environment Variables
-Under the **Environment Variables** section, add:
-- **Key**: `VITE_API_URL`
-- **Value**: Your Railway backend domain without trailing slash, e.g.:
-  ```
-  https://airsync-backend-production.up.railway.app
-  ```
-
-### Step 4: Click Deploy
-1. Click **"Deploy"**.
-2. Vercel will build the frontend and provide your production URL (e.g. `https://airsync-frontend.vercel.app`).
-
----
-
-## Part 3: Configuration Files Included
-
-This repository comes pre-configured with all necessary deployment configs:
-
-1. **`railway.json`**:
-   Configures Nixpacks builder, start command (`npm run start`), and healthcheck path (`/health`).
-
-2. **`vercel.json`**:
-   Configures Vite build, output directory (`dist`), and SPA client-side route rewrites.
-
-3. **`server.ts`**:
-   - Enabled with `cors()` middleware to allow cross-origin requests from Vercel.
-   - Built-in `/health` endpoint for Railway uptime monitors.
-   - Dual-mode: serves REST API to remote frontend or serves static files if bundled together.
-
-4. **`src/utils/api.ts`**:
-   A dedicated API client that reads `import.meta.env.VITE_API_URL` to route requests to Railway.
-
-5. **`package.json`**:
-   `tsx` is in production `dependencies` to ensure runtime stability across all cloud platforms.
-
----
-
-## Part 4: Testing & Verification Checklist
-
-- [ ] **Railway Health**: Visit `https://<your-railway-url>/health` ➜ `{"status":"ok"}`
-- [ ] **Railway API**: Visit `https://<your-railway-url>/api/dashboard` ➜ returns telemetry JSON
-- [ ] **Vercel Frontend**: Visit `https://<your-vercel-url>/` ➜ app loads with full tactical map & widgets
-- [ ] **CORS Verification**: Open DevTools Console on your Vercel URL. Ensure no CORS errors appear when fetching from Railway.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Server uptime & healthcheck |
+| `GET` | `/api/dashboard` | Unified operational picture & telemetry counts |
+| `GET` | `/api/data-sources` | Status of all 7 data fusion feeds |
+| `GET` | `/api/aircraft` | Fleet availability ratio |
+| `GET` | `/api/crew` | Crew readiness percentages |
+| `GET` | `/api/resources` | Fuel and munitions capacity buffer |
+| `GET` | `/api/airspace` | Airspace and corridor transit status |
+| `GET` | `/api/weather` | Convective storm & meteorological status |
+| `GET` | `/api/alerts` | Tactical warnings and system alerts |
+| `GET` | `/api/history` | Audit trail and decision log |
+| `GET` | `/api/system-status`| C2 system service status (DB, API, WS) |
+| `POST`| `/api/analyse` | Trigger AI readiness & delay risk analysis |
+| `POST`| `/api/reoptimise`| Execute constraint-based re-planning |
+| `POST`| `/api/approve-demo`| Record human-in-the-loop decision review |

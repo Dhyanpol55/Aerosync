@@ -379,6 +379,8 @@ interface OperationsContextType {
   setShowAtoModal: (show: boolean) => void;
   showTankerModal: boolean;
   setShowTankerModal: (show: boolean) => void;
+  showBackendHealthModal: boolean;
+  setShowBackendHealthModal: (show: boolean) => void;
 
   // Tactical Intent (Risk vs Yield Control)
   tacticalIntent: TacticalIntent;
@@ -479,6 +481,7 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [showMunitionsModal, setShowMunitionsModal] = useState<boolean>(false);
   const [showAtoModal, setShowAtoModal] = useState<boolean>(false);
   const [showTankerModal, setShowTankerModal] = useState<boolean>(false);
+  const [showBackendHealthModal, setShowBackendHealthModal] = useState<boolean>(false);
   const [activeIncident, setActiveIncident] = useState<ActiveIncident | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(() => getTacticalAudioMute());
   const [heartbeatTick, setHeartbeatTick] = useState<number>(0);
@@ -1742,6 +1745,8 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setShowAtoModal,
         showTankerModal,
         setShowTankerModal,
+        showBackendHealthModal,
+        setShowBackendHealthModal,
         tacticalIntent,
         setTacticalIntent,
         userRole,
